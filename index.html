@@ -767,6 +767,7 @@ function draw(){
     ctx.textAlign = 'left';
     var dtxt = 'Броски: ' + (DUEL_DROPS_C - dropsCount);
     if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   Цель: ' + (duelViewCache.oppScore + 1);
+    if (duelViewCache && duelViewCache.tries > 1) dtxt += '   Попытка ' + duelViewCache.tries + '/' + (duelViewCache.triesMax || 3);
     ctx.strokeText(dtxt, boardX + cell*0.9, topZone - cell - 10);
     ctx.fillText(dtxt, boardX + cell*0.9, topZone - cell - 10);
   }
@@ -958,7 +959,7 @@ function duelIntro(){
   if (!duelParam) return;
   duelUI({
     title: 'Дуэль',
-    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.',
+    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.<br><small style="opacity:.75">На раунд даётся 3 входа — выход из игры тратит попытку.</small>',
     start: 'Вступить в дуэль (−' + duelParam.stake + ' 💎)'.replace('💎',''),
   });
   $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>Вступить (−' + duelParam.stake + ' ' + '<svg class="ic"><use href="#i-gem"/></svg>)';
@@ -971,6 +972,8 @@ function duelJoin(){
     if (!d.ok){
       if (d.error === 'balance'){
         duelUI({ title:'Дуэль', text:'Не хватает кристаллов: нужно <b>' + (d.need||duelParam.stake) + '</b> ' + IC_GEM + '.<br>Забери бонус дня или заработай в обычной игре!', start:false });
+      } else if (d.error === 'attempts'){
+        duelUI({ title:'Дуэль', text:'Попытки закончились (3 из 3) — раунд можно было начать не больше трёх раз.<br>Если соперник сдаст счёт, ему засчитают победу; если нет — ставки вернутся через сутки.', start:false });
       } else if (d.error === 'full'){
         duelUI({ title:'Дуэль', text:'В этой дуэли уже двое. Создай свой вызов!', start:false, rematch:true });
       } else {
