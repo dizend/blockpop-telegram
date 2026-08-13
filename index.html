@@ -78,6 +78,9 @@
   <symbol id="i-trophy" viewBox="0 0 24 24"><path fill="#ffd54f" d="M7 3.6h10v5.2a5 5 0 0 1-10 0z"/><path fill="none" stroke="#ffd54f" stroke-width="2" d="M7 5H4.2a2.9 2.9 0 0 0 3.2 4M17 5h2.8a2.9 2.9 0 0 1-3.2 4"/><path fill="#ffb300" d="M10.6 13.2h2.8v3h-2.8z"/><rect x="7.6" y="16" width="8.8" height="3.4" rx="1.3" fill="#ffb300"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M11 3.4a1.6 1.6 0 0 1 2 0l7.4 6a1.6 1.6 0 0 1 .6 1.2V19a1.9 1.9 0 0 1-1.9 1.9h-4.3V15a2.8 2.8 0 0 0-5.6 0v5.9H4.9A1.9 1.9 0 0 1 3 19v-8.4c0-.5.2-.9.6-1.2z"/></symbol>
   <symbol id="i-invite" viewBox="0 0 24 24"><path d="M21.2 3.3c.8-.3 1.6.5 1.3 1.3l-6 16.1c-.3.9-1.6.9-1.9 0l-2.4-6.4a1 1 0 0 0-.6-.6L5.2 11.3c-.9-.3-.9-1.6 0-1.9z"/><path fill="#a9e7ff" d="M11.6 12.4 16.9 7 12 12.8a1 1 0 0 1-.4-.4z" opacity=".9"/></symbol>
+  <symbol id="i-cal" viewBox="0 0 24 24"><rect x="3.4" y="5" width="17.2" height="15.6" rx="2.4"/><rect x="3.4" y="5" width="17.2" height="4.6" rx="2" fill="#ff6b6b"/><rect x="7" y="2.8" width="2.4" height="4" rx="1.2" fill="#ffe14d"/><rect x="14.6" y="2.8" width="2.4" height="4" rx="1.2" fill="#ffe14d"/><path fill="#2e2154" d="m12 11 1.1 2.2 2.4.4-1.7 1.7.4 2.4-2.2-1.1-2.2 1.1.4-2.4-1.7-1.7 2.4-.4z"/></symbol>
+  <symbol id="i-bell" viewBox="0 0 24 24"><path d="M12 3a6 6 0 0 0-6 6v3.3l-1.6 2.9c-.5.9.2 2 1.2 2h12.8c1 0 1.7-1.1 1.2-2L18 12.3V9a6 6 0 0 0-6-6z"/><path d="M9.8 19.4a2.3 2.3 0 0 0 4.4 0z"/></symbol>
+  <symbol id="i-crown" viewBox="0 0 24 24"><path fill="#ffe14d" d="M4 8.6 8 12l4-6 4 6 4-3.4-1.5 9.2a1.8 1.8 0 0 1-1.8 1.5H7.3a1.8 1.8 0 0 1-1.8-1.5z"/><circle cx="4" cy="7.4" r="1.7" fill="#ffb300"/><circle cx="20" cy="7.4" r="1.7" fill="#ffb300"/><circle cx="12" cy="4.8" r="1.7" fill="#ffb300"/></symbol>
   <symbol id="i-duel" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M4.5 4.5 17 17M19.5 4.5 7 17"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M15.2 19.2 19.2 15.2M4.8 15.2l4 4"/><circle cx="17.9" cy="18.1" r="1.9"/><circle cx="6.1" cy="18.1" r="1.9"/></symbol>
 </svg>
 <div id="wrap">
@@ -100,10 +103,12 @@
   <div class="best hidden" id="bonusMsg"></div>
   <button class="btn hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
   <button class="btn blue hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
+  <button class="btn hidden" id="btnDaily" style="position:relative"><svg class="ic"><use href="#i-cal"/></svg>Вызов дня<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
   <button class="btn ghost hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="tgl" id="tglMusic" title="Музыка"><svg class="ic"><use href="#i-music"/></svg></button>
+    <button class="tgl hidden" id="tglNotif" title="Напоминания"><svg class="ic"><use href="#i-bell"/></svg></button>
   </div>
   <div id="userHello"></div>
 </div>
@@ -130,6 +135,16 @@
   <div class="best" id="topMe"></div>
   <div class="best" id="topSeason" style="font-size:13px"></div>
   <button class="btn ghost" id="btnTopClose"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
+</div>
+
+<div id="scrDaily" class="screen hidden">
+  <div class="logo" style="font-size:min(9vw,34px)"><svg class="ic"><use href="#i-cal"/></svg> Вызов дня</div>
+  <div class="sub" id="dailyInfo"></div>
+  <div class="bigscore hidden" id="dailyBig">0</div>
+  <div class="best hidden" id="dailyMy"></div>
+  <div id="dailyList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px;max-height:36vh;overflow-y:auto"></div>
+  <button class="btn green" id="btnDailyPlay">Играть</button>
+  <button class="btn ghost" id="btnDailyMenu"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
 <div id="scrDuel" class="screen hidden">
@@ -250,7 +265,7 @@ function refreshMe(){
   }
   wapi('/me', null, function(d){
     crysLoading = false; clearTimeout(crysTimer);
-    if (d && d.ok){ myBalance=d.balance; bonusState=d.bonus; }
+    if (d && d.ok){ myBalance=d.balance; bonusState=d.bonus; if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); } }
     updateCrysUI(true);
   });
 }
@@ -492,11 +507,12 @@ function mulberry32(a){
 // ---------- Дуэль: состояние ----------
 var DUEL_POOL = [2,2,2,4,4,8,8,16];
 var DUEL_DROPS_C = 40;
-var duelActive = false, duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
-var duelParam = null;
+var duelActive = false, duelKind = 'duel', duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
+var duelParam = null, startWithDaily = false;
 (function(){
   try {
     var sp = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+    if (sp === 'daily'){ startWithDaily = true; return; }
     var m = /^d(\d+)x([a-z0-9]{8,32})$/.exec(sp);
     if (m) duelParam = { stake:+m[1], token:m[2], raw:sp };
   } catch(e){}
@@ -794,7 +810,7 @@ function draw(){
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
     ctx.font = 'bold 15px "Arial Rounded MT Bold", Arial, sans-serif';
     ctx.textAlign = 'left';
-    var dtxt = 'Броски: ' + (DUEL_DROPS_C - dropsCount);
+    var dtxt = (duelKind === 'daily' ? 'Вызов дня · ' : '') + 'Броски: ' + (DUEL_DROPS_C - dropsCount);
     if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   Цель: ' + (duelViewCache.oppScore + 1);
     if (duelViewCache && duelViewCache.tries > 1) dtxt += '   Попытка ' + duelViewCache.tries + '/' + (duelViewCache.triesMax || 3);
     ctx.strokeText(dtxt, boardX + cell*0.9, topZone - cell - 10);
@@ -906,7 +922,8 @@ function updateHud(){
 function openMenu(){
   state='menu'; musicStop();
   duelActive = false;
-  hide('scrDuel');
+  hide('scrDuel'); hide('scrDaily'); hide('scrTop');
+  checkDailyBadge();
   $('menuBest').textContent = 'Рекорд: ' + best;
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
   refreshMe();
@@ -1036,7 +1053,7 @@ function duelJoin(){
   });
 }
 function startDuelRound(){
-  duelActive = true;
+  duelActive = true; duelKind = 'duel';
   lsSet('bp_duel_tut', '1');
   hide('scrDuel');
   startGame();
@@ -1064,6 +1081,7 @@ function duelFinish(){
   state='over'; musicStop();
   duelActive = false;
   sfxLand();
+  if (duelKind === 'daily'){ dailyFinish(); return; }
   duelUI({ title:'Дуэль', big: score, text: '<span class="spinner"></span> Отправляю счёт…', start:false });
   var payload = { duel: duelParam.raw, score: score, dur: Date.now()-gameStartTs, moves: dropsCount };
   wapi('/duel/score', payload, function(d){
@@ -1104,6 +1122,121 @@ function shareDuel(){
 $('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 if (tg) $('btnDuel').classList.remove('hidden');
 $('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
+
+// ---------- Вызов дня ----------
+var dailyState = null;
+function showDailyScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hide('scrOver'); hide('scrPause'); show('scrDaily'); if (state !== 'over') state = 'menu'; }
+function updateDailyBadge(){
+  var b = $('dailyBadge'); if (!b) return;
+  var showB = dailyState && !dailyState.played && dailyState.tries < dailyState.triesMax;
+  b.classList.toggle('hidden', !showB);
+}
+function renderDaily(){
+  var d = dailyState;
+  var info = $('dailyInfo'), big = $('dailyBig'), my = $('dailyMy'), list = $('dailyList'), play = $('btnDailyPlay');
+  if (!d){
+    info.innerHTML = '<span class="spinner"></span> Загружаю…';
+    big.classList.add('hidden'); my.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden');
+    return;
+  }
+  var left = Math.max(0, d.endsAt - Date.now());
+  var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
+  play.disabled = false;
+  play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Играть';
+  if (d.played){
+    big.textContent = d.myScore; big.classList.remove('hidden');
+    my.innerHTML = 'Твоё место сегодня: <b>#' + d.myRank + '</b> из ' + d.players; my.classList.remove('hidden');
+    info.innerHTML = 'Сыграно! Новая колода через ' + hh + ' ч ' + mm + ' м.<br>Утром топ-10 дня получат кристаллы.';
+    play.classList.add('hidden');
+  } else if (d.tries >= d.triesMax){
+    big.classList.add('hidden'); my.classList.add('hidden');
+    info.textContent = 'Попытки на сегодня исчерпаны — возвращайся завтра за новой колодой!';
+    play.classList.add('hidden');
+  } else {
+    big.classList.add('hidden'); my.classList.add('hidden');
+    info.innerHTML = 'Одна колода на всех, одна попытка, ' + DUEL_DROPS_C + ' бросков.<br>Топ-10 дня получают кристаллы: 30/20/10 ' + IC_GEM + ' за пьедестал, 5 ' + IC_GEM + ' остальным.<br>До конца дня: ' + hh + ' ч ' + mm + ' м.' +
+      (d.tries > 0 ? '<br><small style="opacity:.75">Это последняя попытка (вход ' + (d.tries + 1) + '/' + d.triesMax + ').</small>' : '');
+    play.classList.remove('hidden');
+  }
+  list.innerHTML = '';
+  if (!d.top || !d.top.length){
+    list.innerHTML = '<div class="best">Сегодня ещё никто не сыграл — будь первым!</div>';
+  } else {
+    for (var i = 0; i < d.top.length; i++){
+      var r = d.top[i];
+      var div = document.createElement('div');
+      div.className = 'toprow' + (r.user_id === d.myId ? ' me' : '');
+      var rk = document.createElement('span');
+      rk.className = 'rk' + (i === 0 ? ' gold' : i === 1 ? ' silv' : i === 2 ? ' brnz' : '');
+      rk.textContent = i + 1;
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
+      var gm = document.createElement('span'); gm.className = 'gm'; gm.textContent = r.score;
+      div.appendChild(rk); div.appendChild(nm); div.appendChild(gm);
+      list.appendChild(div);
+    }
+  }
+}
+function openDaily(){
+  showDailyScreen();
+  dailyState = null; renderDaily();
+  wapi('/daily/state', null, function(d){
+    dailyState = (d && d.ok) ? d : { played:false, tries:2, triesMax:2, top:[], players:0, endsAt:Date.now(), myId:0 };
+    renderDaily(); updateDailyBadge();
+  });
+}
+function checkDailyBadge(){
+  if (!tg || !authPayload()) return;
+  wapi('/daily/state', null, function(d){ if (d && d.ok){ dailyState = d; updateDailyBadge(); } });
+}
+function startDailyRound(seed){
+  duelActive = true; duelKind = 'daily';
+  duelSeedVal = seed; duelIdx = 0; duelViewCache = null;
+  hide('scrDaily');
+  startGame();
+}
+function dailyFinish(){
+  showDailyScreen();
+  $('dailyBig').textContent = score; $('dailyBig').classList.remove('hidden');
+  $('dailyMy').classList.add('hidden'); $('dailyList').innerHTML = ''; $('btnDailyPlay').classList.add('hidden');
+  $('dailyInfo').innerHTML = '<span class="spinner"></span> Отправляю результат…';
+  wapi('/daily/score', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
+    refreshMe();
+    if (!d || !d.ok){
+      $('dailyInfo').textContent = 'Не удалось отправить результат. Открой «Вызов дня» из меню и попробуй ещё раз.';
+      return;
+    }
+    dailyState = d; renderDaily(); updateDailyBadge();
+    if (d.myRank && d.myRank <= 3){ sfxCombo(5); haptic('rec'); gemRain(24); }
+  });
+}
+$('btnDaily').addEventListener('click', function(){ audio(); sfxClick(); openDaily(); });
+$('btnDailyMenu').addEventListener('click', function(){ sfxClick(); openMenu(); });
+$('btnDailyPlay').addEventListener('click', function(){
+  audio(); sfxClick();
+  var play = $('btnDailyPlay');
+  play.disabled = true; play.innerHTML = '<span class="spinner"></span> Вхожу…';
+  wapi('/daily/join', null, function(d){
+    if (d && d.ok){ startDailyRound(d.seed); return; }
+    play.disabled = false; play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Играть';
+    if (d && (d.error === 'attempts' || d.error === 'played')){ dailyState = d.state || dailyState; if (dailyState && d.error==='attempts') dailyState.tries = dailyState.triesMax; renderDaily(); updateDailyBadge(); }
+    else $('dailyInfo').textContent = 'Не получилось войти. Проверь связь и попробуй ещё раз.';
+  });
+});
+if (tg) $('btnDaily').classList.remove('hidden');
+
+// ---------- Тумблер напоминаний ----------
+var myNotify = 1;
+function updNotifTgl(){
+  var t = $('tglNotif'); if (!t) return;
+  if (tg && authPayload()) t.classList.remove('hidden');
+  t.classList.toggle('off', !myNotify);
+}
+$('tglNotif').addEventListener('click', function(){
+  sfxClick();
+  myNotify = myNotify ? 0 : 1;
+  updNotifTgl();
+  wapi('/prefs', { notify: myNotify }, function(d){ if (d && d.ok){ myNotify = d.notify; updNotifTgl(); } });
+});
 
 // ---------- Топ сезона ----------
 var topData = null, topTab = 'r', duelHist = null;
@@ -1153,7 +1286,10 @@ function renderTop(){
       rk.className = 'rk' + (i===0?' gold':i===1?' silv':i===2?' brnz':'');
       rk.textContent = i + 1;
       var nm = document.createElement('span'); nm.className = 'nm';
-      nm.textContent = (r.user_id === topData.myId ? '⭐ ' : '') + (r.name || 'Игрок');
+      nm.textContent = r.name || 'Игрок';
+      if (topData.prevTop3 && topData.prevTop3.indexOf(r.user_id) >= 0){
+        nm.insertAdjacentHTML('afterbegin', '<svg class="ic"><use href="#i-crown"/></svg> ');
+      }
       var wn = document.createElement('span'); wn.className = 'wn';
       wn.textContent = r.wins + ' поб.';
       var gm = document.createElement('span'); gm.className = 'gm';
@@ -1240,7 +1376,9 @@ newGrid();
 resize();
 setTimeout(resize, 300);
 refreshMe();
+checkDailyBadge();
 if (duelParam && tg) duelIntro();
+else if (startWithDaily && tg) openDaily();
 syncToggles();
 requestAnimationFrame(step);
 </script>
