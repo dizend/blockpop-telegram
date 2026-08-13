@@ -22,6 +22,9 @@
   #btnSkip:active:not(.cool) { transform:scale(.92); }
   .ic { width:1.05em; height:1.05em; display:inline-block; vertical-align:-0.15em; fill:currentColor; }
   .btn .ic { margin-right:6px; }
+  @keyframes rot { to { transform:rotate(360deg); } }
+  .spinner { width:.85em; height:.85em; border:2.5px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; display:inline-block; vertical-align:-0.08em; animation:rot .8s linear infinite; }
+  .btn:disabled { opacity:.65; }
   .screen { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(24,16,45,.90); backdrop-filter:blur(6px); padding:24px; text-align:center; }
   .hidden { display:none !important; }
   .logo { font-size:min(13vw,58px); font-weight:bold; color:#fff; text-shadow:0 4px 0 rgba(0,0,0,.35); letter-spacing:1px; }
@@ -162,36 +165,72 @@ function wapi(path, extra, cb){
   if (extra) for (var k2 in extra) body[k2]=extra[k2];
   try {
     fetch(WORKER_BASE+path, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body) })
-      .then(function(r){ return r.json(); }).then(function(d){ if (cb) cb(d); }).catch(function(){});
-  } catch(e){}
+      .then(function(r){ return r.json(); }).then(function(d){ if (cb) cb(d); }).catch(function(){ if (cb) cb(null); });
+  } catch(e){ if (cb) cb(null); }
 }
-function updateCrysUI(){
-  var pill=$('crysPill'), val=$('crysVal'), bb=$('btnBonus');
+var IC_GEM = '<svg class="ic"><use href="#i-gem"/></svg>';
+var crysShown = -1;
+function setCrysDisplay(n, animate){
+  var val = $('crysVal');
+  if (!animate || crysShown < 0 || crysShown === n){ crysShown = n; val.innerHTML = IC_GEM + ' ' + n; return; }
+  var from = crysShown, to = n, t0 = performance.now();
+  crysShown = n;
+  (function tick(now){
+    var k = Math.min(1, (now - t0) / 600);
+    var cur = Math.round(from + (to - from) * (1 - Math.pow(1 - k, 3)));
+    val.innerHTML = IC_GEM + ' ' + cur;
+    if (k < 1) requestAnimationFrame(tick);
+  })(t0);
+}
+var crysLoading = false, crysTimer = null;
+function updateCrysUI(animate){
+  var pill=$('crysPill'), bb=$('btnBonus');
+  if (crysLoading && myBalance===null){
+    pill.style.display='';
+    $('crysVal').innerHTML = '<span class="spinner"></span>';
+    bb.classList.add('hidden');
+    return;
+  }
   if (myBalance===null){ pill.style.display='none'; bb.classList.add('hidden'); return; }
   pill.style.display='';
-  val.innerHTML = '<svg class="ic"><use href="#i-gem"/></svg> ' + myBalance;
+  setCrysDisplay(myBalance, animate);
   if (bonusState && bonusState.available){
     bb.innerHTML = '<svg class="ic"><use href="#i-gift"/></svg>Бонус дня +' + bonusState.amount;
     bb.classList.remove('hidden');
   } else bb.classList.add('hidden');
 }
 function refreshMe(){
+  if (!authPayload()) return;
+  if (myBalance === null){
+    crysLoading = true; updateCrysUI();
+    clearTimeout(crysTimer);
+    crysTimer = setTimeout(function(){ if (crysLoading){ crysLoading = false; updateCrysUI(); } }, 8000);
+  }
   wapi('/me', null, function(d){
-    if (d && d.ok){ myBalance=d.balance; bonusState=d.bonus; updateCrysUI(); }
+    crysLoading = false; clearTimeout(crysTimer);
+    if (d && d.ok){ myBalance=d.balance; bonusState=d.bonus; }
+    updateCrysUI(true);
   });
 }
+var bonusBusy = false;
 $('btnBonus').addEventListener('click', function(){
+  if (bonusBusy) return;
   sfxClick();
+  bonusBusy = true;
+  var bb = $('btnBonus'), oldHtml = bb.innerHTML;
+  bb.disabled = true;
+  bb.innerHTML = '<span class="spinner"></span> Получаю…';
   wapi('/bonus', null, function(d){
-    if (!d || !d.ok) return;
+    bonusBusy = false; bb.disabled = false;
+    if (!d || !d.ok){ bb.innerHTML = oldHtml; return; }
     myBalance = d.balance;
     var msg = $('bonusMsg');
     if (d.claimed){
       bonusState = { available:false };
       sfxCombo(3); haptic('rec');
-      if (msg){ msg.innerHTML = '+' + d.gained + ' <svg class="ic"><use href="#i-gem"/></svg>! Серия: ' + d.streak + ' ' + (d.streak===1?'день':(d.streak<5?'дня':'дней')) + ' подряд'; msg.classList.remove('hidden'); }
+      if (msg){ msg.innerHTML = '+' + d.gained + ' ' + IC_GEM + '! Серия: ' + d.streak + ' ' + (d.streak===1?'день':(d.streak<5?'дня':'дней')) + ' подряд'; msg.classList.remove('hidden'); }
     } else bonusState = d.bonus;
-    updateCrysUI();
+    updateCrysUI(true);
   });
 });
 var tg = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
@@ -543,13 +582,18 @@ function gameOver(){
   $('overBest').textContent = 'Рекорд: ' + best;
   if (isRec) show('newRec'); else hide('newRec');
   submitScore(score);
-  if (score > 0) wapi('/earn', { score: score, dur: Date.now() - gameStartTs }, function(d){
-    if (!d || !d.ok) return;
-    myBalance = d.balance; updateCrysUI();
-    var oe = $('overEarn'); if (!oe) return;
-    if (d.gained > 0){ oe.innerHTML = '+' + d.gained + ' <svg class="ic"><use href="#i-gem"/></svg> (сегодня: ' + d.earnedToday + '/' + d.earnCap + ')'; oe.classList.remove('hidden'); }
-    else if (d.earnedToday >= d.earnCap){ oe.innerHTML = '<svg class="ic"><use href="#i-gem"/></svg> Дневной лимит кристаллов набран'; oe.classList.remove('hidden'); }
-  });
+  if (score > 0 && authPayload()){
+    var oe0 = $('overEarn');
+    if (oe0){ oe0.innerHTML = '<span class="spinner"></span> Начисляю кристаллы…'; oe0.classList.remove('hidden'); }
+    wapi('/earn', { score: score, dur: Date.now() - gameStartTs }, function(d){
+      var oe = $('overEarn'); if (!oe) return;
+      if (!d || !d.ok){ oe.classList.add('hidden'); return; }
+      myBalance = d.balance; updateCrysUI(true);
+      if (d.gained > 0){ oe.innerHTML = '+' + d.gained + ' ' + IC_GEM + ' (сегодня: ' + d.earnedToday + '/' + d.earnCap + ')'; }
+      else if (d.earnedToday >= d.earnCap){ oe.innerHTML = IC_GEM + ' Дневной лимит кристаллов набран'; }
+      else oe.classList.add('hidden');
+    });
+  }
   updateHud();
   setTimeout(function(){ show('scrOver'); }, 600);
 }
