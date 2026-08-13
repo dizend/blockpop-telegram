@@ -1931,6 +1931,14 @@ function setBtn(id, icon, key, extra){
 }
 function applyLang(){
   document.documentElement.lang = LANG;
+  document.title = LANG === 'en' ? 'BlockPop!' : 'БлокПоп!';
+  var logo = document.querySelector('#scrMenu .logo');
+  if (logo){
+    var word = LANG === 'en' ? 'BlockPop!' : 'БлокПоп!';
+    var html = '';
+    for (var li = 0; li < word.length; li++) html += '<span class="c' + (li % 6 + 1) + '">' + word[li] + '</span>';
+    logo.innerHTML = html;
+  }
   var hudL = document.querySelectorAll('#hud .lbl');
   if (hudL[0]) hudL[0].textContent = t('score');
   if (hudL[1]) hudL[1].textContent = t('best');
