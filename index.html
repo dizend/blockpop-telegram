@@ -63,6 +63,7 @@
   <symbol id="i-trophy" viewBox="0 0 24 24"><path fill="#ffd54f" d="M7 3.6h10v5.2a5 5 0 0 1-10 0z"/><path fill="none" stroke="#ffd54f" stroke-width="2" d="M7 5H4.2a2.9 2.9 0 0 0 3.2 4M17 5h2.8a2.9 2.9 0 0 1-3.2 4"/><path fill="#ffb300" d="M10.6 13.2h2.8v3h-2.8z"/><rect x="7.6" y="16" width="8.8" height="3.4" rx="1.3" fill="#ffb300"/></symbol>
   <symbol id="i-home" viewBox="0 0 24 24"><path d="M11 3.4a1.6 1.6 0 0 1 2 0l7.4 6a1.6 1.6 0 0 1 .6 1.2V19a1.9 1.9 0 0 1-1.9 1.9h-4.3V15a2.8 2.8 0 0 0-5.6 0v5.9H4.9A1.9 1.9 0 0 1 3 19v-8.4c0-.5.2-.9.6-1.2z"/></symbol>
   <symbol id="i-invite" viewBox="0 0 24 24"><path d="M21.2 3.3c.8-.3 1.6.5 1.3 1.3l-6 16.1c-.3.9-1.6.9-1.9 0l-2.4-6.4a1 1 0 0 0-.6-.6L5.2 11.3c-.9-.3-.9-1.6 0-1.9z"/><path fill="#a9e7ff" d="M11.6 12.4 16.9 7 12 12.8a1 1 0 0 1-.4-.4z" opacity=".9"/></symbol>
+  <symbol id="i-duel" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M4.5 4.5 17 17M19.5 4.5 7 17"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" d="M15.2 19.2 19.2 15.2M4.8 15.2l4 4"/><circle cx="17.9" cy="18.1" r="1.9"/><circle cx="6.1" cy="18.1" r="1.9"/></symbol>
 </svg>
 <div id="wrap">
   <div id="hud">
@@ -82,6 +83,7 @@
   <button class="btn green" id="btnPlay"><svg class="ic"><use href="#i-play"/></svg>Играть</button>
   <button class="btn blue hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
   <div class="best hidden" id="bonusMsg"></div>
+  <button class="btn hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
   <button class="btn ghost hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
@@ -99,6 +101,15 @@
     <button class="tgl" id="tglSound2" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="tgl" id="tglMusic2" title="Музыка"><svg class="ic"><use href="#i-music"/></svg></button>
   </div>
+</div>
+
+<div id="scrDuel" class="screen hidden">
+  <div class="logo" style="font-size:min(9vw,38px)" id="duelTitle"><svg class="ic"><use href="#i-duel"/></svg> Дуэль</div>
+  <div class="bigscore hidden" id="duelBig">0</div>
+  <div class="sub" id="duelText"></div>
+  <button class="btn green" id="btnDuelStart">Вступить в дуэль</button>
+  <button class="btn blue hidden" id="btnDuelRematch"><svg class="ic"><use href="#i-duel"/></svg>Реванш</button>
+  <button class="btn ghost" id="btnDuelMenu"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
 <div id="scrOver" class="screen hidden">
@@ -431,7 +442,36 @@ function spawnPool(){
   for (var i=0;i<vals.length;i++) pool.push(Math.max(vals[i], minV));
   return pool;
 }
-function rndNext(){ var p = spawnPool(); return p[Math.floor(Math.random()*p.length)]; }
+function rndNext(){
+  if (duelActive){
+    // детерминированная «колода»: блок №i одинаков для обоих дуэлянтов
+    var r = mulberry32((duelSeedVal ^ Math.imul(duelIdx, 0x9E3779B1)) >>> 0)();
+    duelIdx++;
+    var dp = DUEL_POOL;
+    return dp[Math.floor(r * dp.length)];
+  }
+  var p = spawnPool(); return p[Math.floor(Math.random()*p.length)];
+}
+function mulberry32(a){
+  return function(){
+    a |= 0; a = a + 0x6D2B79F5 | 0;
+    var t = Math.imul(a ^ a >>> 15, 1 | a);
+    t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t;
+    return ((t ^ t >>> 14) >>> 0) / 4294967296;
+  };
+}
+// ---------- Дуэль: состояние ----------
+var DUEL_POOL = [2,2,2,4,4,8,8,16];
+var DUEL_DROPS_C = 40;
+var duelActive = false, duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
+var duelParam = null;
+(function(){
+  try {
+    var sp = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
+    var m = /^d(\d+)x([a-z0-9]{8,32})$/.exec(sp);
+    if (m) duelParam = { stake:+m[1], token:m[2], raw:sp };
+  } catch(e){}
+})();
 
 // ---------- Запуск игры ----------
 function startGame(){
@@ -469,6 +509,7 @@ function updateSkipBtn(){
 // ---------- Бросок ----------
 function tryDrop(col){
   if (state!=='aim' || !curBlock) return;
+  if (duelActive && dropsCount >= DUEL_DROPS_C) return;
   if (colHeight(col) >= ROWS) { shakeT = 8; sfxClick(); return; }
   var b = { id:uid++, v:curBlock.v, col:col, row:colHeight(col), y: topZone - cell, scale:1, pop:0, tick:++moveTick };
   b.targetY = cellY(b.row);
@@ -552,9 +593,11 @@ function checkMilestone(v){
     if (boomed>0){ score += boomed*thr*2; }
     bannerTxt = 'БУМ! ' + v + '!'; bannerT = 90; shakeT = 14;
     sfxBoom(); haptic('boom');
-    // младшие блоки уходят и из очереди выдачи
-    var minV = minSpawnV();
-    for (var qi=0; qi<nextQ.length; qi++) if (nextQ[qi] < minV) nextQ[qi] = minV;
+    // младшие блоки уходят и из очереди выдачи (в дуэли колода фиксирована)
+    if (!duelActive){
+      var minV = minSpawnV();
+      for (var qi=0; qi<nextQ.length; qi++) if (nextQ[qi] < minV) nextQ[qi] = minV;
+    }
     applyGravity();
   }
 }
@@ -716,6 +759,17 @@ function draw(){
     ctx.globalAlpha = 1;
     drawBlock(boardX+boardW-cell*0.92, topZone-cell*0.95, nextQ[0], 0.52);
   }
+  // дуэльный HUD: остаток бросков и цель
+  if (duelActive && (state==='aim'||state==='drop'||state==='resolve'||state==='pause')){
+    ctx.fillStyle = '#ffe14d';
+    ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
+    ctx.font = 'bold 15px "Arial Rounded MT Bold", Arial, sans-serif';
+    ctx.textAlign = 'left';
+    var dtxt = 'Броски: ' + (DUEL_DROPS_C - dropsCount);
+    if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   Цель: ' + (duelViewCache.oppScore + 1);
+    ctx.strokeText(dtxt, boardX + cell*0.9, topZone - cell - 10);
+    ctx.fillText(dtxt, boardX + cell*0.9, topZone - cell - 10);
+  }
   // предупреждение: колонка почти полна
   if (state==='aim'||state==='drop'||state==='resolve'||state==='pause') for (c=0;c<COLS;c++){
     var hgt = colHeight(c);
@@ -803,7 +857,8 @@ function step(){
         if (g){ doMerge(g); resolveWait = 7; }
         else {
           combo = 0;
-          if (boardFull()){ gameOver(); }
+          if (duelActive && (dropsCount >= DUEL_DROPS_C || boardFull())){ duelFinish(); }
+          else if (boardFull()){ gameOver(); }
           else { spawnCur(); state='aim'; }
         }
       }
@@ -820,6 +875,8 @@ function updateHud(){
 }
 function openMenu(){
   state='menu'; musicStop();
+  duelActive = false;
+  hide('scrDuel');
   $('menuBest').textContent = 'Рекорд: ' + best;
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
   refreshMe();
@@ -884,6 +941,122 @@ $('btnMenu2').addEventListener('click', function(){ sfxClick(); openMenu(); });
 function toggleSound(){ sndOn=!sndOn; storeSet('bp_snd', sndOn?'1':'0'); syncToggles(); sfxClick(); }
 function toggleMusic(){ musOn=!musOn; storeSet('bp_mus', musOn?'1':'0'); syncToggles(); syncMusic(); sfxClick(); }
 $('btnSkip').addEventListener('click', function(e){ e.stopPropagation(); audio(); useSkip(); });
+// ---------- Дуэль: экраны и поток ----------
+function showDuelScreen(){ hide('scrMenu'); hide('scrPause'); hide('scrOver'); show('scrDuel'); if (state!=='over') state='menu'; }
+function duelUI(opts){
+  $('duelText').innerHTML = opts.text || '';
+  var big = $('duelBig');
+  if (opts.big != null){ big.textContent = opts.big; big.classList.remove('hidden'); } else big.classList.add('hidden');
+  var bs = $('btnDuelStart');
+  bs.classList.toggle('hidden', !opts.start);
+  if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? '<span class="spinner"></span> Вхожу…' : opts.start; }
+  $('btnDuelRematch').classList.toggle('hidden', !opts.rematch);
+  $('duelTitle').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg> ' + (opts.title || 'Дуэль');
+  showDuelScreen();
+}
+function duelIntro(){
+  if (!duelParam) return;
+  duelUI({
+    title: 'Дуэль',
+    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.',
+    start: 'Вступить в дуэль (−' + duelParam.stake + ' 💎)'.replace('💎',''),
+  });
+  $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>Вступить (−' + duelParam.stake + ' ' + '<svg class="ic"><use href="#i-gem"/></svg>)';
+}
+function duelJoin(){
+  if (!duelParam) return;
+  duelUI({ title:'Дуэль', text:'Подключаюсь…', start:'Вступить', busy:true });
+  wapi('/duel/join', { duel: duelParam.raw }, function(d){
+    if (!d){ duelUI({ title:'Дуэль', text:'Нет связи с сервером. Попробуй ещё раз.', start:'Повторить' }); return; }
+    if (!d.ok){
+      if (d.error === 'balance'){
+        duelUI({ title:'Дуэль', text:'Не хватает кристаллов: нужно <b>' + (d.need||duelParam.stake) + '</b> ' + IC_GEM + '.<br>Забери бонус дня или заработай в обычной игре!', start:false });
+      } else if (d.error === 'full'){
+        duelUI({ title:'Дуэль', text:'В этой дуэли уже двое. Создай свой вызов!', start:false, rematch:true });
+      } else {
+        duelUI({ title:'Дуэль', text:'Не получилось войти в дуэль.', start:'Повторить' });
+      }
+      refreshMe();
+      return;
+    }
+    duelViewCache = d.view || null;
+    refreshMe();
+    if (d.view && d.view.status === 'done'){ renderDuelDone(d.view); return; }
+    if (d.view && d.view.status === 'expired'){ duelUI({ title:'Дуэль', text:'⌛ Время дуэли вышло, ставки возвращены.', start:false, rematch:true }); return; }
+    if (d.view && d.view.myScore != null){ renderDuelWait(d.view); return; }
+    duelSeedVal = d.seed; duelIdx = 0;
+    startDuelRound();
+  });
+}
+function startDuelRound(){
+  duelActive = true;
+  hide('scrDuel');
+  startGame();
+}
+function renderDuelWait(view){
+  duelUI({
+    title: 'Дуэль',
+    big: view.myScore,
+    text: 'Твой счёт отправлен!<br>' + (view.p2 && view.p2.name || view.p1 && view.p1.name ? 'Ждём соперника — ' : 'Ждём второго игрока — ') + 'бот пришлёт результат в личку.',
+    start: false,
+  });
+}
+function renderDuelDone(view){
+  var t, big = null;
+  if (view.draw){ t = '🤝 Ничья! Ставки возвращены.'; big = view.myScore; }
+  else if (view.youWon){ t = 'Ты забираешь <b>' + view.prize + '</b> ' + IC_GEM + '!<br>Счёт: ' + view.myScore + ':' + (view.oppScore==null?'—':view.oppScore); big = view.myScore; }
+  else { t = 'Победил соперник (' + (view.oppScore==null?'—':view.oppScore) + ':' + view.myScore + ').<br>Требуй реванш!'; big = view.myScore; }
+  duelUI({
+    title: view.draw ? 'Ничья' : view.youWon ? 'Победа!' : 'Поражение',
+    big: big, text: t, start:false, rematch:true,
+  });
+  if (view.youWon){ sfxCombo(5); haptic('rec'); } else if (!view.draw){ sfxOver(); }
+}
+function duelFinish(){
+  state='over'; musicStop();
+  duelActive = false;
+  sfxLand();
+  duelUI({ title:'Дуэль', big: score, text: '<span class="spinner"></span> Отправляю счёт…', start:false });
+  var payload = { duel: duelParam.raw, score: score, dur: Date.now()-gameStartTs, moves: dropsCount };
+  wapi('/duel/score', payload, function(d){
+    refreshMe();
+    if (!d || !d.ok){
+      duelUI({ title:'Дуэль', big: score, text: 'Не удалось отправить счёт. Проверь связь и попробуй снова.', start:'Отправить ещё раз' });
+      $('btnDuelStart').onclick = null; // основной обработчик join не нужен
+      duelRetry = payload;
+      return;
+    }
+    duelRetry = null;
+    duelViewCache = d.view || null;
+    if (d.view && d.view.status === 'done') renderDuelDone(d.view);
+    else renderDuelWait(d.view || { myScore: score });
+  });
+}
+var duelRetry = null;
+$('btnDuelStart').addEventListener('click', function(){
+  audio(); sfxClick();
+  if (duelRetry){
+    var pl = duelRetry;
+    duelUI({ title:'Дуэль', big: pl.score, text:'<span class="spinner"></span> Отправляю счёт…', start:false });
+    wapi('/duel/score', pl, function(d){
+      refreshMe();
+      if (!d || !d.ok){ duelUI({ title:'Дуэль', big: pl.score, text:'Снова не вышло. Попробуй позже — счёт можно сдать в течение суток.', start:'Отправить ещё раз' }); return; }
+      duelRetry = null;
+      if (d.view && d.view.status === 'done') renderDuelDone(d.view); else renderDuelWait(d.view || { myScore: pl.score });
+    });
+    return;
+  }
+  duelJoin();
+});
+$('btnDuelMenu').addEventListener('click', function(){ sfxClick(); duelActive=false; hide('scrDuel'); openMenu(); });
+function shareDuel(){
+  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery('дуэль', ['users','groups']); return; } catch(e){} }
+  if (tg && tg.openTelegramLink){ try { tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) + '&text=' + encodeURIComponent('Вызываю на дуэль в БлокПоп! Набери @BlockPopGameBot в чате и выбери «Дуэль».')); } catch(e){} }
+}
+$('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
+if (tg) $('btnDuel').classList.remove('hidden');
+$('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
+
 if (tg) $('btnInvite').classList.remove('hidden');
 $('btnInvite').addEventListener('click', function(){
   sfxClick();
@@ -928,6 +1101,7 @@ newGrid();
 resize();
 setTimeout(resize, 300);
 refreshMe();
+if (duelParam && tg) duelIntro();
 syncToggles();
 requestAnimationFrame(step);
 </script>
