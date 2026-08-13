@@ -277,6 +277,13 @@ function resize(){
   topZone = cell*1.7;
   boardY = Math.min(topZone + 8, H - boardH - 12);
   if (boardY < topZone) boardY = topZone;
+  // пересчитать координаты блоков под новую геометрию (иначе после поворота/смены вьюпорта блоки "зависают")
+  for (var i=0;i<blocks.length;i++){
+    var b = blocks[i];
+    b.targetY = cellY(b.row);
+    if (b !== dropB) { b.y = b.targetY; b.vy = 0; }
+  }
+  if (curBlock) curBlock.x = cellX(curBlock.col)+cell/2;
 }
 window.addEventListener('resize', resize);
 if (tg && tg.onEvent) { try { tg.onEvent('viewportChanged', resize); } catch(e){} }
@@ -300,8 +307,9 @@ function rndNext(){ var p = spawnPool(); return p[Math.floor(Math.random()*p.len
 
 // ---------- Запуск игры ----------
 function startGame(){
-  newGrid(); blocks=[]; particles=[]; floaters=[];
+  newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
+  var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
   nextV = rndNext();
   spawnCur();
   updateHud();
@@ -317,8 +325,7 @@ function spawnCur(){
 function tryDrop(col){
   if (state!=='aim' || !curBlock) return;
   if (colHeight(col) >= ROWS) { shakeT = 8; sfxClick(); return; }
-  var b = { id:uid++, v:curBlock.v, col:col, row:colHeight(col), y: -cell*0.8 + boardY - boardY, scale:1, pop:0, tick:++moveTick };
-  b.y = topZone - cell; // старт над доской (в px от верха canvas)
+  var b = { id:uid++, v:curBlock.v, col:col, row:colHeight(col), y: topZone - cell, scale:1, pop:0, tick:++moveTick };
   b.targetY = cellY(b.row);
   grid[col][b.row] = b;
   blocks.push(b);
@@ -584,8 +591,8 @@ function draw(){
 // ---------- Игровой цикл ----------
 var resolveWait = 0;
 function step(){
-  // физика падения
-  for (var i=0;i<blocks.length;i++){
+  // физика падения (замирает на паузе)
+  if (state!=='pause') for (var i=0;i<blocks.length;i++){
     var b = blocks[i];
     if (b.y < b.targetY){
       b.vy = (b.vy||0) + 1.6;
