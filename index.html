@@ -78,6 +78,7 @@
   <div class="bigscore" id="overScore">0</div>
   <div class="best" id="overBest">Рекорд: 0</div>
   <div class="newrec hidden" id="newRec">🏆 Новый рекорд!</div>
+  <div class="best hidden" id="scoreSent"></div>
   <button class="btn green" id="btnAgain">↺ Ещё раз</button>
   <button class="btn blue" id="btnShare">📤 Поделиться</button>
   <button class="btn ghost" id="btnMenu2">В меню</button>
@@ -92,6 +93,35 @@
 
 // ---------- Telegram Mini App integration ----------
 var TG_BOT_URL = 'https://t.me/BlockPopGameBot/play'; // ссылка мини-аппа (кнопка «Поделиться»)
+var SCORE_API = 'https://blockpop-bot.dizend.workers.dev/score'; // воркер лидерборда
+
+// Контекст «игры из чата» (Games API): подписанные параметры из URL
+var GAME_CTX = null;
+(function(){
+  try {
+    var q = new URLSearchParams(location.search);
+    if (q.get('sig') && q.get('u') && q.get('ts')) {
+      GAME_CTX = { u:q.get('u'), im:q.get('im')||'', c:q.get('c')||'', m:q.get('m')||'', ts:q.get('ts'), sig:q.get('sig') };
+    }
+  } catch(e){}
+})();
+function submitScore(s){
+  if (!GAME_CTX || !SCORE_API) return;
+  var el = document.getElementById('scoreSent');
+  if (el){ el.textContent = 'Отправляю результат…'; el.classList.remove('hidden'); }
+  try {
+    fetch(SCORE_API, {
+      method: 'POST',
+      headers: { 'Content-Type': 'text/plain' }, // без preflight
+      body: JSON.stringify({ score:s, u:GAME_CTX.u, im:GAME_CTX.im, c:GAME_CTX.c, m:GAME_CTX.m, ts:GAME_CTX.ts, sig:GAME_CTX.sig })
+    }).then(function(r){ return r.json(); }).then(function(d){
+      if (!el) return;
+      if (d && d.ok && d.recorded) el.textContent = '🏆 Результат записан в рейтинг чата!';
+      else if (d && d.ok) el.textContent = 'Рекорд в рейтинге чата не побит — жми «Ещё раз»!';
+      else el.classList.add('hidden');
+    }).catch(function(){ if (el) el.classList.add('hidden'); });
+  } catch(e){ if (el) el.classList.add('hidden'); }
+}
 var tg = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
 var tgReady = false;
 if (tg) {
@@ -399,6 +429,7 @@ function gameOver(){
   $('overScore').textContent = score;
   $('overBest').textContent = 'Рекорд: ' + best;
   if (isRec) show('newRec'); else hide('newRec');
+  submitScore(score);
   updateHud();
   setTimeout(function(){ show('scrOver'); }, 600);
 }
