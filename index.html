@@ -58,6 +58,10 @@
   .toprow .nm { flex:1; color:#fff; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; }
   .toprow .gm { color:#ffe14d; font-weight:bold; flex:none; }
   .toprow .wn { color:#8f7fc9; font-size:12px; flex:none; }
+  .toprow .gm.neg { color:#ff8a80; }
+  .toprow .gm.zero { color:#8f7fc9; }
+  .gemfall { position:fixed; top:-48px; z-index:40; pointer-events:none; animation:gfall linear forwards; }
+  @keyframes gfall { to { transform:translateY(115vh) rotate(600deg); opacity:.9; } }
 </style>
 </head>
 <body>
@@ -120,6 +124,7 @@
   <div class="toptabs">
     <button class="toptab on" id="topTabR">Мой круг</button>
     <button class="toptab" id="topTabG">Мир</button>
+    <button class="toptab" id="topTabH">Дуэли</button>
   </div>
   <div id="topList"></div>
   <div class="best" id="topMe"></div>
@@ -967,6 +972,19 @@ function toggleSound(){ sndOn=!sndOn; storeSet('bp_snd', sndOn?'1':'0'); syncTog
 function toggleMusic(){ musOn=!musOn; storeSet('bp_mus', musOn?'1':'0'); syncToggles(); syncMusic(); sfxClick(); }
 $('btnSkip').addEventListener('click', function(e){ e.stopPropagation(); audio(); useSkip(); });
 // ---------- Дуэль: экраны и поток ----------
+function gemRain(n){
+  for (var i = 0; i < (n || 24); i++){
+    var el = document.createElement('div');
+    el.className = 'gemfall';
+    el.innerHTML = IC_GEM;
+    el.style.left = (Math.random() * 100) + 'vw';
+    el.style.fontSize = (16 + Math.random() * 24) + 'px';
+    el.style.animationDuration = (1.4 + Math.random() * 1.6) + 's';
+    el.style.animationDelay = (Math.random() * 0.9) + 's';
+    document.body.appendChild(el);
+    (function(e){ setTimeout(function(){ e.remove(); }, 4500); })(el);
+  }
+}
 function showDuelScreen(){ hide('scrMenu'); hide('scrPause'); hide('scrOver'); show('scrDuel'); if (state!=='over') state='menu'; }
 function duelUI(opts){
   $('duelText').innerHTML = opts.text || '';
@@ -983,7 +1001,9 @@ function duelIntro(){
   if (!duelParam) return;
   duelUI({
     title: 'Дуэль',
-    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.<br><small style="opacity:.75">На раунд даётся 3 входа — выход из игры тратит попытку.</small>',
+    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.<br><small style="opacity:.75">На раунд даётся 3 входа — выход из игры тратит попытку.</small>' +
+      (lsGet('bp_duel_tut') ? '' :
+      '<br><br><b>Как это работает:</b><br>1. Жми «Вступить» — спишется ставка.<br>2. Сыграй раунд: у тебя ровно ' + DUEL_DROPS_C + ' бросков.<br>3. Соперник сыграет тот же расклад — у кого счёт выше, тот и забирает банк. Результат придёт от бота.'),
     start: 'Вступить в дуэль (−' + duelParam.stake + ' 💎)'.replace('💎',''),
   });
   $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>Вступить (−' + duelParam.stake + ' ' + '<svg class="ic"><use href="#i-gem"/></svg>)';
@@ -1017,6 +1037,7 @@ function duelJoin(){
 }
 function startDuelRound(){
   duelActive = true;
+  lsSet('bp_duel_tut', '1');
   hide('scrDuel');
   startGame();
 }
@@ -1037,7 +1058,7 @@ function renderDuelDone(view){
     title: view.draw ? 'Ничья' : view.youWon ? 'Победа!' : 'Поражение',
     big: big, text: t, start:false, rematch:true,
   });
-  if (view.youWon){ sfxCombo(5); haptic('rec'); } else if (!view.draw){ sfxOver(); }
+  if (view.youWon){ sfxCombo(5); haptic('rec'); gemRain(28); } else if (!view.draw){ sfxOver(); }
 }
 function duelFinish(){
   state='over'; musicStop();
@@ -1085,13 +1106,41 @@ if (tg) $('btnDuel').classList.remove('hidden');
 $('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 
 // ---------- Топ сезона ----------
-var topData = null, topTab = 'r';
+var topData = null, topTab = 'r', duelHist = null;
+function renderHistory(){
+  var list = $('topList');
+  list.innerHTML = '';
+  $('topMe').textContent = '';
+  if (!duelHist){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
+  if (!duelHist.length){ list.innerHTML = '<div class="best">Дуэлей пока не было — вызови кого-нибудь!</div>'; return; }
+  for (var i = 0; i < duelHist.length; i++){
+    var h = duelHist[i];
+    var div = document.createElement('div'); div.className = 'toprow';
+    var rk = document.createElement('span'); rk.className = 'rk';
+    if (h.result === 'win'){ rk.className = 'rk gold'; rk.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg>'; }
+    else if (h.result === 'lose'){ rk.textContent = '✕'; rk.style.color = '#ff8a80'; }
+    else if (h.result === 'draw'){ rk.textContent = '='; }
+    else if (h.result === 'expired'){ rk.textContent = '—'; }
+    else { rk.textContent = '…'; }
+    var nm = document.createElement('span'); nm.className = 'nm';
+    nm.textContent = h.oppName ? 'против ' + h.oppName : (h.result === 'wait' ? 'ждём соперника' : 'без соперника');
+    var wn = document.createElement('span'); wn.className = 'wn';
+    wn.textContent = (h.myScore != null ? h.myScore : '—') + ':' + (h.oppScore != null ? h.oppScore : '—');
+    var gm = document.createElement('span');
+    gm.className = 'gm' + (h.delta < 0 ? ' neg' : h.delta === 0 ? ' zero' : '');
+    gm.innerHTML = (h.delta > 0 ? '+' : '') + h.delta + ' ' + IC_GEM;
+    div.appendChild(rk); div.appendChild(nm); div.appendChild(wn); div.appendChild(gm);
+    list.appendChild(div);
+  }
+}
 function renderTop(){
+  $('topTabR').classList.toggle('on', topTab === 'r');
+  $('topTabG').classList.toggle('on', topTab === 'g');
+  $('topTabH').classList.toggle('on', topTab === 'h');
+  if (topTab === 'h'){ renderHistory(); return; }
   var list = $('topList');
   list.innerHTML = '';
   if (!topData){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
-  $('topTabR').classList.toggle('on', topTab === 'r');
-  $('topTabG').classList.toggle('on', topTab === 'g');
   var rows = topTab === 'g' ? topData.global : topData.rivals;
   if (!rows || !rows.length){
     list.innerHTML = '<div class="best">Пока пусто — выиграй дуэль и открой сезон!</div>';
@@ -1124,7 +1173,7 @@ function renderTop(){
 }
 function openTop(){
   hide('scrMenu'); show('scrTop'); state = 'menu';
-  topData = null; renderTop();
+  topData = null; duelHist = null; renderTop();
   wapi('/top', null, function(d){
     if (d && d.ok) topData = d;
     else topData = { global: [], rivals: [], my: null, myId: 0, endsAt: 0 };
@@ -1135,6 +1184,16 @@ $('btnTop').addEventListener('click', function(){ sfxClick(); openTop(); });
 $('btnTopClose').addEventListener('click', function(){ sfxClick(); hide('scrTop'); show('scrMenu'); });
 $('topTabR').addEventListener('click', function(){ sfxClick(); topTab = 'r'; renderTop(); });
 $('topTabG').addEventListener('click', function(){ sfxClick(); topTab = 'g'; renderTop(); });
+$('topTabH').addEventListener('click', function(){
+  sfxClick(); topTab = 'h';
+  if (!duelHist){
+    renderTop();
+    wapi('/duels', null, function(d){
+      duelHist = (d && d.ok && d.items) ? d.items : [];
+      if (topTab === 'h') renderTop();
+    });
+  } else renderTop();
+});
 if (tg) $('btnTop').classList.remove('hidden');
 
 if (tg) $('btnInvite').classList.remove('hidden');
