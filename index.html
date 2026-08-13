@@ -59,7 +59,10 @@
   <div class="logo"><span class="c1">Б</span><span class="c2">л</span><span class="c3">о</span><span class="c4">к</span><span class="c5">П</span><span class="c6">о</span><span class="c1">п</span><span class="c3">!</span></div>
   <div class="sub">Бросай блоки в колонки. Одинаковые соседи сливаются и удваиваются. Собери <b style="color:#ffe14d">2048</b>!</div>
   <div class="best" id="menuBest">Рекорд: 0</div>
+  <div class="pill" id="crysPill" style="display:none"><div class="lbl">Кристаллы</div><div class="val" id="crysVal">💎 —</div></div>
   <button class="btn green" id="btnPlay">▶ Играть</button>
+  <button class="btn blue hidden" id="btnBonus">🎁 Бонус дня</button>
+  <div class="best hidden" id="bonusMsg"></div>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук">🔊</button>
     <button class="tgl" id="tglMusic" title="Музыка">🎵</button>
@@ -84,6 +87,7 @@
   <div class="best" id="overBest">Рекорд: 0</div>
   <div class="newrec hidden" id="newRec">🏆 Новый рекорд!</div>
   <div class="best hidden" id="scoreSent"></div>
+  <div class="best hidden" id="overEarn"></div>
   <button class="btn green" id="btnAgain">↺ Ещё раз</button>
   <button class="btn blue" id="btnShare">📤 Поделиться</button>
   <button class="btn ghost" id="btnMenu2">В меню</button>
@@ -127,6 +131,54 @@ function submitScore(s){
     }).catch(function(){ if (el) el.classList.add('hidden'); });
   } catch(e){ if (el) el.classList.add('hidden'); }
 }
+
+// ---------- Кристаллы 💎 ----------
+var WORKER_BASE = 'https://blockpop-bot.dizend.workers.dev';
+var myBalance = null, bonusState = null, gameStartTs = 0;
+function authPayload(){
+  if (tg && tg.initData) return { initData: tg.initData };
+  if (GAME_CTX) return { u:GAME_CTX.u, im:GAME_CTX.im, c:GAME_CTX.c, m:GAME_CTX.m, ts:GAME_CTX.ts, sig:GAME_CTX.sig };
+  return null;
+}
+function wapi(path, extra, cb){
+  var a = authPayload(); if (!a) return;
+  var body = {};
+  for (var k in a) body[k]=a[k];
+  if (extra) for (var k2 in extra) body[k2]=extra[k2];
+  try {
+    fetch(WORKER_BASE+path, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body) })
+      .then(function(r){ return r.json(); }).then(function(d){ if (cb) cb(d); }).catch(function(){});
+  } catch(e){}
+}
+function updateCrysUI(){
+  var pill=$('crysPill'), val=$('crysVal'), bb=$('btnBonus');
+  if (myBalance===null){ pill.style.display='none'; bb.classList.add('hidden'); return; }
+  pill.style.display='';
+  val.textContent = '💎 ' + myBalance;
+  if (bonusState && bonusState.available){
+    bb.textContent = '🎁 Бонус дня +' + bonusState.amount;
+    bb.classList.remove('hidden');
+  } else bb.classList.add('hidden');
+}
+function refreshMe(){
+  wapi('/me', null, function(d){
+    if (d && d.ok){ myBalance=d.balance; bonusState=d.bonus; updateCrysUI(); }
+  });
+}
+$('btnBonus').addEventListener('click', function(){
+  sfxClick();
+  wapi('/bonus', null, function(d){
+    if (!d || !d.ok) return;
+    myBalance = d.balance;
+    var msg = $('bonusMsg');
+    if (d.claimed){
+      bonusState = { available:false };
+      sfxCombo(3); haptic('rec');
+      if (msg){ msg.textContent = '+' + d.gained + ' 💎! Серия: ' + d.streak + ' ' + (d.streak===1?'день':(d.streak<5?'дня':'дней')) + ' подряд'; msg.classList.remove('hidden'); }
+    } else bonusState = d.bonus;
+    updateCrysUI();
+  });
+});
 var tg = (window.Telegram && window.Telegram.WebApp && window.Telegram.WebApp.initData !== undefined) ? window.Telegram.WebApp : null;
 var tgReady = false;
 if (tg) {
@@ -329,6 +381,8 @@ function startGame(){
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
+  var oe=$('overEarn'); if (oe){ oe.classList.add('hidden'); oe.textContent=''; }
+  gameStartTs = Date.now();
   nextQ = [rndNext(), rndNext()];
   skipCooldown = 0;
   spawnCur();
@@ -474,6 +528,13 @@ function gameOver(){
   $('overBest').textContent = 'Рекорд: ' + best;
   if (isRec) show('newRec'); else hide('newRec');
   submitScore(score);
+  if (score > 0) wapi('/earn', { score: score, dur: Date.now() - gameStartTs }, function(d){
+    if (!d || !d.ok) return;
+    myBalance = d.balance; updateCrysUI();
+    var oe = $('overEarn'); if (!oe) return;
+    if (d.gained > 0){ oe.textContent = '+' + d.gained + ' 💎 (сегодня: ' + d.earnedToday + '/' + d.earnCap + ')'; oe.classList.remove('hidden'); }
+    else if (d.earnedToday >= d.earnCap){ oe.textContent = '💎 Дневной лимит кристаллов набран'; oe.classList.remove('hidden'); }
+  });
   updateHud();
   setTimeout(function(){ show('scrOver'); }, 600);
 }
@@ -696,6 +757,8 @@ function updateHud(){
 function openMenu(){
   state='menu'; musicStop();
   $('menuBest').textContent = 'Рекорд: ' + best;
+  var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
+  refreshMe();
   show('scrMenu'); hide('scrPause'); hide('scrOver');
 }
 function doPause(){
@@ -787,6 +850,7 @@ if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.
 newGrid();
 resize();
 setTimeout(resize, 300);
+refreshMe();
 syncToggles();
 requestAnimationFrame(step);
 </script>
