@@ -147,6 +147,7 @@
     <button class="tgl" id="tglVib" title="Вибрация"><svg class="ic"><use href="#i-vib"/></svg></button>
     <button class="tgl hidden" id="tglNotif" title="Напоминания"><svg class="ic"><use href="#i-bell"/></svg></button>
   </div>
+  <button class="btn ghost" id="btnLang" style="font-size:13px;padding:6px 16px;min-width:0">English</button>
   <div id="userHello"></div>
 </div>
 
@@ -239,7 +240,7 @@ var GAME_CTX = null;
 function submitScore(s){
   if (!GAME_CTX || !SCORE_API) return;
   var el = document.getElementById('scoreSent');
-  if (el){ el.textContent = 'Отправляю результат…'; el.classList.remove('hidden'); }
+  if (el){ el.textContent = t('sending'); el.classList.remove('hidden'); }
   try {
     fetch(SCORE_API, {
       method: 'POST',
@@ -247,8 +248,8 @@ function submitScore(s){
       body: JSON.stringify({ score:s, dur: Date.now()-gameStartTs, moves: dropsCount, u:GAME_CTX.u, im:GAME_CTX.im, c:GAME_CTX.c, m:GAME_CTX.m, ts:GAME_CTX.ts, sig:GAME_CTX.sig })
     }).then(function(r){ return r.json(); }).then(function(d){
       if (!el) return;
-      if (d && d.ok && d.recorded) el.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> Результат записан в рейтинг чата!';
-      else if (d && d.ok) el.textContent = 'Рекорд в рейтинге чата не побит — жми «Ещё раз»!';
+      if (d && d.ok && d.recorded) el.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> ' + t('sentToBoard');
+      else if (d && d.ok) el.textContent = t('notBeaten');
       else el.classList.add('hidden');
     }).catch(function(){ if (el) el.classList.add('hidden'); });
   } catch(e){ if (el) el.classList.add('hidden'); }
@@ -299,7 +300,7 @@ function updateCrysUI(animate){
   pill.style.display='';
   setCrysDisplay(myBalance, animate);
   if (bonusState && bonusState.available){
-    bb.innerHTML = '<svg class="ic"><use href="#i-gift"/></svg>Бонус дня +' + bonusState.amount;
+    bb.innerHTML = '<svg class="ic"><use href="#i-gift"/></svg>' + t('bonusDay') + ' +' + bonusState.amount;
     bb.classList.remove('hidden');
   } else bb.classList.add('hidden');
 }
@@ -323,7 +324,7 @@ $('btnBonus').addEventListener('click', function(){
   bonusBusy = true;
   var bb = $('btnBonus'), oldHtml = bb.innerHTML;
   bb.disabled = true;
-  bb.innerHTML = '<span class="spinner"></span> Получаю…';
+  bb.innerHTML = '<span class="spinner"></span> ' + t('getting');
   wapi('/bonus', null, function(d){
     bonusBusy = false; bb.disabled = false;
     if (!d || !d.ok){ bb.innerHTML = oldHtml; return; }
@@ -332,7 +333,7 @@ $('btnBonus').addEventListener('click', function(){
     if (d.claimed){
       bonusState = { available:false };
       sfxCombo(3); haptic('rec');
-      if (msg){ msg.innerHTML = '+' + d.gained + ' ' + IC_GEM + '! Серия: ' + d.streak + ' ' + (d.streak===1?'день':(d.streak<5?'дня':'дней')) + ' подряд'; msg.classList.remove('hidden'); }
+      if (msg){ msg.innerHTML = t('bonusGot', { n: d.gained, g: IC_GEM, s: d.streak }); msg.classList.remove('hidden'); }
     } else bonusState = d.bonus;
     updateCrysUI(true);
   });
@@ -349,6 +350,124 @@ if (tg) {
   } catch(e) {}
 }
 function tgVer(v){ try { return tg && tg.isVersionAtLeast && tg.isVersionAtLeast(v); } catch(e){ return false; } }
+
+// ---------- Локализация ----------
+var I18N = {
+  ru: {
+    sub: 'Бросай блоки в колонки. Одинаковые соседи сливаются и удваиваются. Собери <b style="color:#ffe14d">2048</b>!',
+    score:'Счёт', best:'Рекорд', crystals:'Кристаллы', bestN:'Рекорд: {n}', hello:'Привет, {n}!',
+    play:'Играть', bonusDay:'Бонус дня', duel:'Дуэль', seasonTop:'Топ сезона', dailyBtn:'Вызов дня', invite:'Пригласить друзей',
+    pause:'Пауза', resume:'Продолжить', restartBtn:'Заново', toMenu:'В меню', gameOver:'Игра окончена!', newRecord:'Новый рекорд!',
+    again:'Ещё раз', share:'Поделиться', rematch:'Реванш',
+    circle:'Мой круг', world:'Мир', duelsTab:'Дуэли', badges:'Значки',
+    next:'след.', boom:'БУМ! {n}!', comboX:'КОМБО x{n}!',
+    tut1:'Тяни влево-вправо, чтобы целиться', tut2:'Отпусти — блок упадёт',
+    undoDone:'Ход отменён (−5)', need5:'Нужно 5 кристаллов', getting:'Получаю…', joining:'Вхожу…', loading:'Загружаю…', sending:'Отправляю счёт…',
+    bonusGot:'+{n} {g}! Серия: {s} дн. подряд',
+    earned:'+{n} {g} (сегодня: {a}/{b})', earnCapHit:'{g} Дневной лимит кристаллов набран', crediting:'Начисляю кристаллы…',
+    sentToBoard:'Результат записан в рейтинг чата!', notBeaten:'Рекорд в рейтинге чата не побит — жми «Ещё raz»!'.replace('raz','раз»!').replace('»!»!','»!'),
+    drops:'Броски: {n}', target:'Цель: {n}', attempt:'Попытка {a}/{b}', dailyHud:'Вызов дня', tourHud:'Турнир',
+    duelTitle:'Дуэль', victory:'Победа!', defeat:'Поражение', drawT:'Ничья',
+    duelIntro:'Ставка: <b>{s}</b> {g} · {d} бросков · одинаковый расклад блоков.<br>Победитель забирает <b>{p}</b> {g}, при ничьей ставки возвращаются.<br><small style="opacity:.75">На раунд даётся 3 входа — выход из игры тратит попытку.</small>',
+    duelHow:'<br><br><b>Как это работает:</b><br>1. Жми «Вступить» — спишется ставка.<br>2. Сыграй раунд: у тебя ровно {d} бросков.<br>3. Соперник сыграет тот же расклад — у кого счёт выше, тот и забирает банк. Результат придёт от бота.',
+    duelEnter:'Вступить (−{s} {g})', duelConnect:'Подключаюсь…', duelRetryBtn:'Повторить', duelNoNet:'Нет связи с сервером. Попробуй ещё раз.',
+    duelNoBalance:'Не хватает кристаллов: нужно <b>{n}</b> {g}.<br>Забери бонус дня или заработай в обычной игре!',
+    duelAttemptsOut:'Попытки закончились (3 из 3) — раунд можно было начать не больше трёх раз.<br>Если соперник сдаст счёт, ему засчитают победу; если нет — ставки вернутся через сутки.',
+    duelFull:'В этой дуэли уже двое. Создай свой вызов!', duelFail:'Не получилось войти в дуэль.',
+    duelExpired:'⌛ Время дуэли вышло, ставки возвращены.',
+    duelSentWait:'Твой счёт отправлен!<br>Ждём соперника — бот пришлёт результат в личку.',
+    duelWon:'Ты забираешь <b>{p}</b> {g}!<br>Счёт: {a}:{b}', duelLost:'Победил соперник ({a}:{b}).<br>Требуй реванш!', duelDraw:'🤝 Ничья! Ставки возвращены.',
+    duelSendFail:'Не удалось отправить счёт. Проверь связь и попробуй снова.', duelResend:'Отправить ещё раз',
+    duelResendLater:'Снова не вышло. Попробуй позже — счёт можно сдать в течение суток.',
+    dailyTitle:'Вызов дня', dailyRules:'Одна колода на всех, одна попытка, {d} бросков.<br>Топ-10 дня получают кристаллы: 30/20/10 {g} за пьедестал, 5 {g} остальным.<br>До конца дня: {h} ч {m} м.',
+    dailyLast:'<br><small style="opacity:.75">Это последняя попытка (вход {a}/{b}).</small>',
+    dailyDone:'Сыграно! Новая колода через {h} ч {m} м.<br>Утром топ-10 дня получат кристаллы.',
+    dailyOut:'Попытки на сегодня исчерпаны — возвращайся завтра за новой колодой!',
+    dailyMyPlace:'Твоё место сегодня: <b>#{r}</b> из {n}', dailyEmpty:'Сегодня ещё никто не сыграл — будь первым!',
+    dailySendFail:'Не удалось отправить результат. Открой «Вызов дня» из меню и попробуй ещё раз.', dailyJoinFail:'Не получилось войти. Проверь связь и попробуй ещё раз.',
+    tourTitle:'Турнир', tourJoinBtn:'Вступить (−{s} {g})', tourPlayBtn:'Играть раунд',
+    tourOpen:'Ставка: <b>{s}</b> {g} · мест: {j}/{m} · одна колода на всех.<br>Топ-3 делят банк: {pz}<br>До итогов: {h} ч {m2} м.',
+    tourJoined:'Ты в турнире! Осталось сыграть раунд — {d} бросков.<br>Итоги через {h} ч {m2} м. Призы: {pz}',
+    tourPlayed:'Твой счёт принят! Сыграли {f} из {j}.<br>Итоги: когда сыграют все или через {h} ч {m2} м.<br>Призы: {pz}',
+    tourDoneT:'Турнир завершён!', tourPrize:'<br><b>Твой приз: +{n}</b> {g} 🎉'.replace(' 🎉',''), tourNoPrize:'<br>Призы достались топ-3 — в следующий раз!',
+    tourCancelled:'Турнир не состоялся — ставки возвращены.', tourFull:'Все {m} мест заняты. Создай свой турнир!',
+    tourEmpty:'Пока никого — стань первым участником!', tourPlaying:'играет', tourWait:'ждём соперника', tourNoOpp:'без соперника',
+    tourSendFail:'Не удалось отправить. Открой турнир по кнопке в чате ещё раз.',
+    topEmpty:'Пока пусто — выиграй дуэль и открой сезон!', topMy:'Твоё место в мире: <b>#{r}</b> · {g2} {g} · побед: {w}',
+    topGoWin:'Выиграй дуэль, чтобы попасть в топ!', seasonEnds:'До конца сезона: {d}', dd:'{d} д {h} ч', hh:'{h} ч',
+    histEmpty:'Дуэлей пока не было — вызови кого-нибудь!', vs:'против {n}', wins:'{n} поб.',
+    collected:'Собрано: {a} из {b}', achToast:'Достижение: <b>{t}</b> +{r} {g}',
+    limitTxt:'{g} Дневной лимит кристаллов набран',
+    shareText:'Я набрал(а) {s} очков в БлокПоп! 🎮 Сможешь побить мой рекорд?',
+    inviteText:'Сыграем в БлокПоп? Сливай блоки, собирай 2048 и попади в рейтинг чата!',
+    duelInvite:'Вызываю на дуэль в БлокПоп! Набери @BlockPopGameBot в чате и выбери «Дуэль».',
+    playedMark:'✓ сыграл',
+  },
+  en: {
+    sub: 'Drop blocks into columns. Equal neighbours merge and double. Reach <b style="color:#ffe14d">2048</b>!',
+    score:'Score', best:'Best', crystals:'Crystals', bestN:'Best: {n}', hello:'Hi, {n}!',
+    play:'Play', bonusDay:'Daily bonus', duel:'Duel', seasonTop:'Season top', dailyBtn:'Daily challenge', invite:'Invite friends',
+    pause:'Paused', resume:'Resume', restartBtn:'Restart', toMenu:'Menu', gameOver:'Game over!', newRecord:'New record!',
+    again:'Play again', share:'Share', rematch:'Rematch',
+    circle:'My circle', world:'World', duelsTab:'Duels', badges:'Badges',
+    next:'next', boom:'BOOM! {n}!', comboX:'COMBO x{n}!',
+    tut1:'Drag left-right to aim', tut2:'Release to drop the block',
+    undoDone:'Move undone (−5)', need5:'You need 5 crystals', getting:'Claiming…', joining:'Joining…', loading:'Loading…', sending:'Sending score…',
+    bonusGot:'+{n} {g}! Streak: {s} days',
+    earned:'+{n} {g} (today: {a}/{b})', earnCapHit:'{g} Daily crystal cap reached', crediting:'Adding crystals…',
+    sentToBoard:'Score submitted to the chat leaderboard!', notBeaten:'Chat highscore not beaten — hit "Play again"!',
+    drops:'Drops: {n}', target:'Target: {n}', attempt:'Attempt {a}/{b}', dailyHud:'Daily', tourHud:'Tournament',
+    duelTitle:'Duel', victory:'Victory!', defeat:'Defeat', drawT:'Draw',
+    duelIntro:'Stake: <b>{s}</b> {g} · {d} drops · identical deck of blocks.<br>Winner takes <b>{p}</b> {g}; on a draw stakes are refunded.<br><small style="opacity:.75">You get 3 entries per round — quitting the game costs an attempt.</small>',
+    duelHow:'<br><br><b>How it works:</b><br>1. Tap "Join" — your stake is charged.<br>2. Play the round: exactly {d} drops.<br>3. Your opponent plays the same deck — higher score takes the pot. The bot will message you the result.',
+    duelEnter:'Join (−{s} {g})', duelConnect:'Connecting…', duelRetryBtn:'Retry', duelNoNet:'No connection to the server. Try again.',
+    duelNoBalance:'Not enough crystals: you need <b>{n}</b> {g}.<br>Claim the daily bonus or earn some in regular games!',
+    duelAttemptsOut:'No attempts left (3 of 3) — the round can be started at most three times.<br>If your opponent submits a score, they win; otherwise stakes are refunded in 24h.',
+    duelFull:'This duel already has two players. Create your own!', duelFail:'Could not join the duel.',
+    duelExpired:'⌛ The duel expired, stakes refunded.',
+    duelSentWait:'Your score is in!<br>Waiting for the opponent — the bot will DM you the result.',
+    duelWon:'You take <b>{p}</b> {g}!<br>Score: {a}:{b}', duelLost:'Your opponent won ({a}:{b}).<br>Demand a rematch!', duelDraw:'🤝 Draw! Stakes refunded.',
+    duelSendFail:'Failed to send the score. Check your connection and try again.', duelResend:'Send again',
+    duelResendLater:'Failed again. Try later — you have 24 hours to submit.',
+    dailyTitle:'Daily challenge', dailyRules:'One deck for everyone, one attempt, {d} drops.<br>Top 10 win crystals: 30/20/10 {g} for the podium, 5 {g} for the rest.<br>Day ends in: {h} h {m} m.',
+    dailyLast:'<br><small style="opacity:.75">This is your last attempt (entry {a}/{b}).</small>',
+    dailyDone:'Done! New deck in {h} h {m} m.<br>Top 10 get crystals in the morning.',
+    dailyOut:'No attempts left today — come back tomorrow for a fresh deck!',
+    dailyMyPlace:'Your place today: <b>#{r}</b> of {n}', dailyEmpty:'Nobody has played yet — be the first!',
+    dailySendFail:'Failed to submit. Open "Daily challenge" from the menu and try again.', dailyJoinFail:'Could not join. Check your connection and try again.',
+    tourTitle:'Tournament', tourJoinBtn:'Join (−{s} {g})', tourPlayBtn:'Play round',
+    tourOpen:'Stake: <b>{s}</b> {g} · seats: {j}/{m} · one deck for everyone.<br>Top 3 split the pot: {pz}<br>Results in: {h} h {m2} m.',
+    tourJoined:'You are in! Play your round — {d} drops.<br>Results in {h} h {m2} m. Prizes: {pz}',
+    tourPlayed:'Score accepted! {f} of {j} have played.<br>Results once everyone plays, or in {h} h {m2} m.<br>Prizes: {pz}',
+    tourDoneT:'Tournament finished!', tourPrize:'<br><b>Your prize: +{n}</b> {g}', tourNoPrize:'<br>Prizes went to the top 3 — next time!',
+    tourCancelled:'The tournament was cancelled — stakes refunded.', tourFull:'All {m} seats are taken. Create your own tournament!',
+    tourEmpty:'Nobody yet — be the first to join!', tourPlaying:'playing', tourWait:'waiting for opponent', tourNoOpp:'no opponent',
+    tourSendFail:'Failed to send. Open the tournament from the chat button again.',
+    topEmpty:'Empty so far — win a duel to open the season!', topMy:'Your world rank: <b>#{r}</b> · {g2} {g} · wins: {w}',
+    topGoWin:'Win a duel to enter the top!', seasonEnds:'Season ends in: {d}', dd:'{d} d {h} h', hh:'{h} h',
+    histEmpty:'No duels yet — challenge someone!', vs:'vs {n}', wins:'{n} wins',
+    collected:'Collected: {a} of {b}', achToast:'Achievement: <b>{t}</b> +{r} {g}',
+    limitTxt:'{g} Daily crystal cap reached',
+    shareText:'I scored {s} points in BlockPop! 🎮 Can you beat me?',
+    inviteText:'Play BlockPop with me! Merge blocks, reach 2048 and join the chat leaderboard!',
+    duelInvite:'I challenge you to a BlockPop duel! Type @BlockPopGameBot in a chat and pick "Duel".',
+    playedMark:'✓ played',
+  }
+};
+var LANG = 'ru';
+(function(){
+  try {
+    var saved = lsGet('bp_lang');
+    if (saved === 'en' || saved === 'ru') { LANG = saved; return; }
+    var code = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.language_code;
+    if (code && !/^(ru|be|uk|kk|uz|az|ky|tg)/i.test(code)) LANG = 'en';
+  } catch(e){}
+})();
+function t(key, params){
+  var s = (I18N[LANG] && I18N[LANG][key]) || I18N.ru[key] || key;
+  if (params) for (var k in params) s = s.split('{' + k + '}').join(params[k]);
+  return s;
+}
 
 // ---------- Тема ----------
 var themeLight = false;
@@ -739,7 +858,7 @@ function doMerge(group){
   }
   target.v = newV; target.pop = 1; target.tick = ++moveTick;
   floaters.push({x:cellX(target.col)+cell/2, y:target.y, txt:'+'+gained, t:0, col:'#ffe14d'});
-  if (combo>1) floaters.push({x:W/2, y:boardY-10, txt:'КОМБО x'+combo+'!', t:0, col:'#5ec8ff', big:1});
+  if (combo>1) floaters.push({x:W/2, y:boardY-10, txt:t('comboX',{n:combo}), t:0, col:'#5ec8ff', big:1});
   sfxMerge(newV, combo); if (combo>1) sfxCombo(combo);
   haptic('merge');
   checkMilestone(newV);
@@ -760,7 +879,7 @@ function checkMilestone(v){
       }
     }
     if (boomed>0){ score += boomed*thr*2; }
-    bannerTxt = 'БУМ! ' + v + '!'; bannerT = 90; shakeT = 14; flashT = 9;
+    bannerTxt = t('boom', { n: v }); bannerT = 90; shakeT = 14; flashT = 9;
     sfxBoom(); haptic('boom');
     // младшие блоки уходят и из очереди выдачи (в дуэли колода фиксирована)
     if (!duelActive){
@@ -844,13 +963,13 @@ function gameOver(){
   submitScore(score);
   if (score > 0 && authPayload()){
     var oe0 = $('overEarn');
-    if (oe0){ oe0.innerHTML = '<span class="spinner"></span> Начисляю кристаллы…'; oe0.classList.remove('hidden'); }
+    if (oe0){ oe0.innerHTML = '<span class="spinner"></span> ' + t('crediting'); oe0.classList.remove('hidden'); }
     wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
       var oe = $('overEarn'); if (!oe) return;
       if (!d || !d.ok){ oe.classList.add('hidden'); return; }
       myBalance = d.balance; updateCrysUI(true);
-      if (d.gained > 0){ oe.innerHTML = '+' + d.gained + ' ' + IC_GEM + ' (сегодня: ' + d.earnedToday + '/' + d.earnCap + ')'; }
-      else if (d.earnedToday >= d.earnCap){ oe.innerHTML = IC_GEM + ' Дневной лимит кристаллов набран'; }
+      if (d.gained > 0){ oe.innerHTML = t('earned', { n: d.gained, g: IC_GEM, a: d.earnedToday, b: d.earnCap }); }
+      else if (d.earnedToday >= d.earnCap){ oe.innerHTML = t('earnCapHit', { g: IC_GEM }); }
       else oe.classList.add('hidden');
     });
   }
@@ -1013,7 +1132,7 @@ function draw(){
     // очередь: следующий и за ним
     ctx.fillStyle=TH.label;
     ctx.font='11px Arial'; ctx.textAlign='center';
-    ctx.fillText('след.', boardX+boardW-cell*0.55, topZone-cell-10);
+    ctx.fillText(t('next'), boardX+boardW-cell*0.55, topZone-cell-10);
     ctx.globalAlpha = 0.45;
     drawBlock(boardX+boardW-cell*1.35, topZone-cell*0.82, nextQ[1], 0.36);
     ctx.globalAlpha = 1;
@@ -1025,9 +1144,9 @@ function draw(){
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
     ctx.font = 'bold 15px "Arial Rounded MT Bold", Arial, sans-serif';
     ctx.textAlign = 'left';
-    var dtxt = (duelKind === 'daily' ? 'Вызов дня · ' : duelKind === 'tour' ? 'Турнир · ' : '') + 'Броски: ' + (DUEL_DROPS_C - dropsCount);
-    if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   Цель: ' + (duelViewCache.oppScore + 1);
-    if (duelViewCache && duelViewCache.tries > 1) dtxt += '   Попытка ' + duelViewCache.tries + '/' + (duelViewCache.triesMax || 3);
+    var dtxt = (duelKind === 'daily' ? t('dailyHud') + ' · ' : duelKind === 'tour' ? t('tourHud') + ' · ' : '') + t('drops', { n: DUEL_DROPS_C - dropsCount });
+    if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   ' + t('target', { n: duelViewCache.oppScore + 1 });
+    if (duelViewCache && duelViewCache.tries > 1) dtxt += '   ' + t('attempt', { a: duelViewCache.tries, b: duelViewCache.triesMax || 3 });
     ctx.strokeText(dtxt, boardX + cell*0.9, topZone - cell - 10);
     ctx.fillText(dtxt, boardX + cell*0.9, topZone - cell - 10);
   }
@@ -1078,10 +1197,10 @@ function draw(){
     ctx.strokeStyle = themeLight ? 'rgba(255,255,255,.7)' : 'rgba(0,0,0,.5)';
     ctx.lineWidth = 4; ctx.lineJoin = 'round';
     ctx.font = 'bold 17px "Arial Rounded MT Bold", Arial, sans-serif'; ctx.textAlign = 'center';
-    ctx.strokeText('Тяни влево-вправо, чтобы целиться', W/2, boardY + boardH*0.32);
-    ctx.fillText('Тяни влево-вправо, чтобы целиться', W/2, boardY + boardH*0.32);
-    ctx.strokeText('Отпусти — блок упадёт', W/2, boardY + boardH*0.32 + 26);
-    ctx.fillText('Отпусти — блок упадёт', W/2, boardY + boardH*0.32 + 26);
+    ctx.strokeText(t('tut1'), W/2, boardY + boardH*0.32);
+    ctx.fillText(t('tut1'), W/2, boardY + boardH*0.32);
+    ctx.strokeText(t('tut2'), W/2, boardY + boardH*0.32 + 26);
+    ctx.fillText(t('tut2'), W/2, boardY + boardH*0.32 + 26);
     // «палец»
     var fx = W/2 + Math.sin(fcount*0.045) * boardW*0.28;
     var fy = boardY + boardH*0.52;
@@ -1176,7 +1295,7 @@ function openMenu(){
   duelActive = false;
   hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour');
   checkDailyBadge();
-  $('menuBest').textContent = 'Рекорд: ' + best;
+  $('menuBest').textContent = t('bestN', { n: best });
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
   refreshMe();
   show('scrMenu'); hide('scrPause'); hide('scrOver');
@@ -1244,7 +1363,7 @@ $('btnUndo').addEventListener('click', function(e){
   e.stopPropagation(); audio();
   if (undoBusy || state !== 'aim' || !undoSnap || duelActive) return;
   if (myBalance !== null && myBalance < 5){
-    floaters.push({ x: W/2, y: boardY + 40, txt: 'Нужно 5 кристаллов', t: 0, col: '#ff8a80', big: 1 });
+    floaters.push({ x: W/2, y: boardY + 40, txt: t('need5'), t: 0, col: '#ff8a80', big: 1 });
     sfxClick(); return;
   }
   undoBusy = true;
@@ -1253,12 +1372,12 @@ $('btnUndo').addEventListener('click', function(e){
   wapi('/spend', { what: 'undo' }, function(d){
     undoBusy = false; ub.classList.remove('cool');
     if (!d || !d.ok){
-      if (d && d.error === 'balance') floaters.push({ x: W/2, y: boardY + 40, txt: 'Нужно 5 кристаллов', t: 0, col: '#ff8a80', big: 1 });
+      if (d && d.error === 'balance') floaters.push({ x: W/2, y: boardY + 40, txt: t('need5'), t: 0, col: '#ff8a80', big: 1 });
       return;
     }
     myBalance = d.balance; updateCrysUI(true);
     applySnapshot();
-    floaters.push({ x: W/2, y: boardY + 40, txt: 'Ход отменён (−5)', t: 0, col: '#c39bff', big: 1 });
+    floaters.push({ x: W/2, y: boardY + 40, txt: t('undoDone'), t: 0, col: '#c39bff', big: 1 });
     sfxDrop(); haptic('drop');
   });
 });
@@ -1295,36 +1414,35 @@ function duelUI(opts){
   if (opts.big != null){ big.textContent = opts.big; big.classList.remove('hidden'); } else big.classList.add('hidden');
   var bs = $('btnDuelStart');
   bs.classList.toggle('hidden', !opts.start);
-  if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? '<span class="spinner"></span> Вхожу…' : opts.start; }
+  if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? '<span class="spinner"></span> ' + t('joining') : (opts.start === true ? t('play') : opts.start); }
   $('btnDuelRematch').classList.toggle('hidden', !opts.rematch);
-  $('duelTitle').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg> ' + (opts.title || 'Дуэль');
+  $('duelTitle').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg> ' + (opts.title || t('duelTitle'));
   showDuelScreen();
 }
 function duelIntro(){
   if (!duelParam) return;
   duelUI({
-    title: 'Дуэль',
-    text: 'Ставка: <b>' + duelParam.stake + '</b> ' + IC_GEM + ' · ' + DUEL_DROPS_C + ' бросков · одинаковый расклад блоков.<br>Победитель забирает <b>' + Math.floor(duelParam.stake*2*0.8) + '</b> ' + IC_GEM + ', при ничьей ставки возвращаются.<br><small style="opacity:.75">На раунд даётся 3 входа — выход из игры тратит попытку.</small>' +
-      (lsGet('bp_duel_tut') ? '' :
-      '<br><br><b>Как это работает:</b><br>1. Жми «Вступить» — спишется ставка.<br>2. Сыграй раунд: у тебя ровно ' + DUEL_DROPS_C + ' бросков.<br>3. Соперник сыграет тот же расклад — у кого счёт выше, тот и забирает банк. Результат придёт от бота.'),
-    start: 'Вступить в дуэль (−' + duelParam.stake + ' 💎)'.replace('💎',''),
+    title: t('duelTitle'),
+    text: t('duelIntro', { s: duelParam.stake, g: IC_GEM, d: DUEL_DROPS_C, p: Math.floor(duelParam.stake*2*0.8) }) +
+      (lsGet('bp_duel_tut') ? '' : t('duelHow', { d: DUEL_DROPS_C })),
+    start: true,
   });
-  $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>Вступить (−' + duelParam.stake + ' ' + '<svg class="ic"><use href="#i-gem"/></svg>)';
+  $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>' + t('duelEnter', { s: duelParam.stake, g: '<svg class="ic"><use href="#i-gem"/></svg>' });
 }
 function duelJoin(){
   if (!duelParam) return;
-  duelUI({ title:'Дуэль', text:'Подключаюсь…', start:'Вступить', busy:true });
+  duelUI({ title:t('duelTitle'), text:t('duelConnect'), start:t('play'), busy:true });
   wapi('/duel/join', { duel: duelParam.raw }, function(d){
-    if (!d){ duelUI({ title:'Дуэль', text:'Нет связи с сервером. Попробуй ещё раз.', start:'Повторить' }); return; }
+    if (!d){ duelUI({ title:t('duelTitle'), text:t('duelNoNet'), start:t('duelRetryBtn') }); return; }
     if (!d.ok){
       if (d.error === 'balance'){
-        duelUI({ title:'Дуэль', text:'Не хватает кристаллов: нужно <b>' + (d.need||duelParam.stake) + '</b> ' + IC_GEM + '.<br>Забери бонус дня или заработай в обычной игре!', start:false });
+        duelUI({ title:t('duelTitle'), text:t('duelNoBalance', { n: d.need||duelParam.stake, g: IC_GEM }), start:false });
       } else if (d.error === 'attempts'){
-        duelUI({ title:'Дуэль', text:'Попытки закончились (3 из 3) — раунд можно было начать не больше трёх раз.<br>Если соперник сдаст счёт, ему засчитают победу; если нет — ставки вернутся через сутки.', start:false });
+        duelUI({ title:t('duelTitle'), text:t('duelAttemptsOut'), start:false });
       } else if (d.error === 'full'){
-        duelUI({ title:'Дуэль', text:'В этой дуэли уже двое. Создай свой вызов!', start:false, rematch:true });
+        duelUI({ title:t('duelTitle'), text:t('duelFull'), start:false, rematch:true });
       } else {
-        duelUI({ title:'Дуэль', text:'Не получилось войти в дуэль.', start:'Повторить' });
+        duelUI({ title:t('duelTitle'), text:t('duelFail'), start:t('duelRetryBtn') });
       }
       refreshMe();
       return;
@@ -1332,7 +1450,7 @@ function duelJoin(){
     duelViewCache = d.view || null;
     refreshMe();
     if (d.view && d.view.status === 'done'){ renderDuelDone(d.view); return; }
-    if (d.view && d.view.status === 'expired'){ duelUI({ title:'Дуэль', text:'⌛ Время дуэли вышло, ставки возвращены.', start:false, rematch:true }); return; }
+    if (d.view && d.view.status === 'expired'){ duelUI({ title:t('duelTitle'), text:t('duelExpired'), start:false, rematch:true }); return; }
     if (d.view && d.view.myScore != null){ renderDuelWait(d.view); return; }
     duelSeedVal = d.seed; duelIdx = 0;
     startDuelRound();
@@ -1346,20 +1464,20 @@ function startDuelRound(){
 }
 function renderDuelWait(view){
   duelUI({
-    title: 'Дуэль',
+    title: t('duelTitle'),
     big: view.myScore,
-    text: 'Твой счёт отправлен!<br>' + (view.p2 && view.p2.name || view.p1 && view.p1.name ? 'Ждём соперника — ' : 'Ждём второго игрока — ') + 'бот пришлёт результат в личку.',
+    text: t('duelSentWait'),
     start: false,
   });
 }
 function renderDuelDone(view){
-  var t, big = null;
-  if (view.draw){ t = '🤝 Ничья! Ставки возвращены.'; big = view.myScore; }
-  else if (view.youWon){ t = 'Ты забираешь <b>' + view.prize + '</b> ' + IC_GEM + '!<br>Счёт: ' + view.myScore + ':' + (view.oppScore==null?'—':view.oppScore); big = view.myScore; }
-  else { t = 'Победил соперник (' + (view.oppScore==null?'—':view.oppScore) + ':' + view.myScore + ').<br>Требуй реванш!'; big = view.myScore; }
+  var txt, big = null;
+  if (view.draw){ txt = t('duelDraw'); big = view.myScore; }
+  else if (view.youWon){ txt = t('duelWon', { p: view.prize, g: IC_GEM, a: view.myScore, b: (view.oppScore==null?'—':view.oppScore) }); big = view.myScore; }
+  else { txt = t('duelLost', { a: (view.oppScore==null?'—':view.oppScore), b: view.myScore }); big = view.myScore; }
   duelUI({
-    title: view.draw ? 'Ничья' : view.youWon ? 'Победа!' : 'Поражение',
-    big: big, text: t, start:false, rematch:true,
+    title: view.draw ? t('drawT') : view.youWon ? t('victory') : t('defeat'),
+    big: big, text: txt, start:false, rematch:true,
   });
   if (view.youWon){ sfxCombo(5); haptic('rec'); gemRain(28); } else if (!view.draw){ sfxOver(); }
 }
@@ -1370,12 +1488,12 @@ function duelFinish(){
   maybeClaimAch();
   if (duelKind === 'daily'){ dailyFinish(); return; }
   if (duelKind === 'tour'){ tourFinish(); return; }
-  duelUI({ title:'Дуэль', big: score, text: '<span class="spinner"></span> Отправляю счёт…', start:false });
+  duelUI({ title:t('duelTitle'), big: score, text: '<span class="spinner"></span> ' + t('sending'), start:false });
   var payload = { duel: duelParam.raw, score: score, dur: Date.now()-gameStartTs, moves: dropsCount };
   wapi('/duel/score', payload, function(d){
     refreshMe();
     if (!d || !d.ok){
-      duelUI({ title:'Дуэль', big: score, text: 'Не удалось отправить счёт. Проверь связь и попробуй снова.', start:'Отправить ещё раз' });
+      duelUI({ title:t('duelTitle'), big: score, text: t('duelSendFail'), start:t('duelResend') });
       $('btnDuelStart').onclick = null; // основной обработчик join не нужен
       duelRetry = payload;
       return;
@@ -1391,10 +1509,10 @@ $('btnDuelStart').addEventListener('click', function(){
   audio(); sfxClick();
   if (duelRetry){
     var pl = duelRetry;
-    duelUI({ title:'Дуэль', big: pl.score, text:'<span class="spinner"></span> Отправляю счёт…', start:false });
+    duelUI({ title:t('duelTitle'), big: pl.score, text:'<span class="spinner"></span> ' + t('sending'), start:false });
     wapi('/duel/score', pl, function(d){
       refreshMe();
-      if (!d || !d.ok){ duelUI({ title:'Дуэль', big: pl.score, text:'Снова не вышло. Попробуй позже — счёт можно сдать в течение суток.', start:'Отправить ещё раз' }); return; }
+      if (!d || !d.ok){ duelUI({ title:t('duelTitle'), big: pl.score, text:t('duelResendLater'), start:t('duelResend') }); return; }
       duelRetry = null;
       if (d.view && d.view.status === 'done') renderDuelDone(d.view); else renderDuelWait(d.view || { myScore: pl.score });
     });
@@ -1405,7 +1523,7 @@ $('btnDuelStart').addEventListener('click', function(){
 $('btnDuelMenu').addEventListener('click', function(){ sfxClick(); duelActive=false; hide('scrDuel'); openMenu(); });
 function shareDuel(){
   if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery('дуэль', ['users','groups']); return; } catch(e){} }
-  if (tg && tg.openTelegramLink){ try { tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) + '&text=' + encodeURIComponent('Вызываю на дуэль в БлокПоп! Набери @BlockPopGameBot в чате и выбери «Дуэль».')); } catch(e){} }
+  if (tg && tg.openTelegramLink){ try { tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) + '&text=' + encodeURIComponent(t('duelInvite'))); } catch(e){} }
 }
 $('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 if (tg) $('btnDuel').classList.remove('hidden');
@@ -1423,32 +1541,32 @@ function renderDaily(){
   var d = dailyState;
   var info = $('dailyInfo'), big = $('dailyBig'), my = $('dailyMy'), list = $('dailyList'), play = $('btnDailyPlay');
   if (!d){
-    info.innerHTML = '<span class="spinner"></span> Загружаю…';
+    info.innerHTML = '<span class="spinner"></span> ' + t('loading');
     big.classList.add('hidden'); my.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden');
     return;
   }
   var left = Math.max(0, d.endsAt - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
   play.disabled = false;
-  play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Играть';
+  play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('play');
   if (d.played){
     big.textContent = d.myScore; big.classList.remove('hidden');
-    my.innerHTML = 'Твоё место сегодня: <b>#' + d.myRank + '</b> из ' + d.players; my.classList.remove('hidden');
-    info.innerHTML = 'Сыграно! Новая колода через ' + hh + ' ч ' + mm + ' м.<br>Утром топ-10 дня получат кристаллы.';
+    my.innerHTML = t('dailyMyPlace', { r: d.myRank, n: d.players }); my.classList.remove('hidden');
+    info.innerHTML = t('dailyDone', { h: hh, m: mm });
     play.classList.add('hidden');
   } else if (d.tries >= d.triesMax){
     big.classList.add('hidden'); my.classList.add('hidden');
-    info.textContent = 'Попытки на сегодня исчерпаны — возвращайся завтра за новой колодой!';
+    info.textContent = t('dailyOut');
     play.classList.add('hidden');
   } else {
     big.classList.add('hidden'); my.classList.add('hidden');
-    info.innerHTML = 'Одна колода на всех, одна попытка, ' + DUEL_DROPS_C + ' бросков.<br>Топ-10 дня получают кристаллы: 30/20/10 ' + IC_GEM + ' за пьедестал, 5 ' + IC_GEM + ' остальным.<br>До конца дня: ' + hh + ' ч ' + mm + ' м.' +
-      (d.tries > 0 ? '<br><small style="opacity:.75">Это последняя попытка (вход ' + (d.tries + 1) + '/' + d.triesMax + ').</small>' : '');
+    info.innerHTML = t('dailyRules', { d: DUEL_DROPS_C, g: IC_GEM, h: hh, m: mm }) +
+      (d.tries > 0 ? t('dailyLast', { a: d.tries + 1, b: d.triesMax }) : '');
     play.classList.remove('hidden');
   }
   list.innerHTML = '';
   if (!d.top || !d.top.length){
-    list.innerHTML = '<div class="best">Сегодня ещё никто не сыграл — будь первым!</div>';
+    list.innerHTML = '<div class="best">' + t('dailyEmpty') + '</div>';
   } else {
     for (var i = 0; i < d.top.length; i++){
       var r = d.top[i];
@@ -1486,11 +1604,11 @@ function dailyFinish(){
   showDailyScreen();
   $('dailyBig').textContent = score; $('dailyBig').classList.remove('hidden');
   $('dailyMy').classList.add('hidden'); $('dailyList').innerHTML = ''; $('btnDailyPlay').classList.add('hidden');
-  $('dailyInfo').innerHTML = '<span class="spinner"></span> Отправляю результат…';
+  $('dailyInfo').innerHTML = '<span class="spinner"></span> ' + t('sending');
   wapi('/daily/score', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
     refreshMe();
     if (!d || !d.ok){
-      $('dailyInfo').textContent = 'Не удалось отправить результат. Открой «Вызов дня» из меню и попробуй ещё раз.';
+      $('dailyInfo').textContent = t('dailySendFail');
       return;
     }
     dailyState = d; renderDaily(); updateDailyBadge();
@@ -1502,12 +1620,12 @@ $('btnDailyMenu').addEventListener('click', function(){ sfxClick(); openMenu(); 
 $('btnDailyPlay').addEventListener('click', function(){
   audio(); sfxClick();
   var play = $('btnDailyPlay');
-  play.disabled = true; play.innerHTML = '<span class="spinner"></span> Вхожу…';
+  play.disabled = true; play.innerHTML = '<span class="spinner"></span> ' + t('joining');
   wapi('/daily/join', null, function(d){
     if (d && d.ok){ startDailyRound(d.seed); return; }
-    play.disabled = false; play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Играть';
+    play.disabled = false; play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('play');
     if (d && (d.error === 'attempts' || d.error === 'played')){ dailyState = d.state || dailyState; if (dailyState && d.error==='attempts') dailyState.tries = dailyState.triesMax; renderDaily(); updateDailyBadge(); }
-    else $('dailyInfo').textContent = 'Не получилось войти. Проверь связь и попробуй ещё раз.';
+    else $('dailyInfo').textContent = t('dailyJoinFail');
   });
 });
 if (tg) $('btnDaily').classList.remove('hidden');
@@ -1518,34 +1636,34 @@ function showTourScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hid
 function renderTour(){
   var v = tourState;
   var info = $('tourInfo'), big = $('tourBig'), list = $('tourList'), play = $('btnTourPlay');
-  if (!v){ info.innerHTML = '<span class="spinner"></span> Загружаю…'; big.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden'); return; }
+  if (!v){ info.innerHTML = '<span class="spinner"></span> ' + t('loading'); big.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden'); return; }
   var left = Math.max(0, v.deadline - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
   var prizesTxt = (v.prizes && v.prizes.length) ? v.prizes.map(function(p, i){ return '#' + (i+1) + ': ' + p; }).join(' · ') + ' ' + IC_GEM : '';
   play.disabled = false;
   big.classList.add('hidden');
   if (v.status === 'cancelled'){
-    info.textContent = 'Турнир не состоялся — ставки возвращены.'; play.classList.add('hidden');
+    info.textContent = t('tourCancelled'); play.classList.add('hidden');
   } else if (v.status === 'done'){
     var meP = v.me.joined && v.me.played;
     if (meP){ big.textContent = v.me.score; big.classList.remove('hidden'); }
-    info.innerHTML = 'Турнир завершён!' + (v.me.prize ? '<br><b>Твой приз: +' + v.me.prize + '</b> ' + IC_GEM + ' 🎉' : (meP ? '<br>Призы достались топ-3 — в следующий раз!' : ''));
+    info.innerHTML = t('tourDoneT') + (v.me.prize ? t('tourPrize', { n: v.me.prize, g: IC_GEM }) : (meP ? t('tourNoPrize') : ''));
     play.classList.add('hidden');
     if (v.me.prize) gemRain(24);
   } else if (v.me.joined && v.me.played){
     big.textContent = v.me.score; big.classList.remove('hidden');
-    info.innerHTML = 'Твой счёт принят! Сыграли ' + v.finishers + ' из ' + v.joined + '.<br>Итоги: когда сыграют все или через ' + hh + ' ч ' + mm + ' м.<br>Призы: ' + prizesTxt;
+    info.innerHTML = t('tourPlayed', { f: v.finishers, j: v.joined, h: hh, m2: mm, pz: prizesTxt });
     play.classList.add('hidden');
   } else if (v.me.joined){
-    info.innerHTML = 'Ты в турнире! Оста' + (v.me.tries > 1 ? 'лась последняя попытка' : 'лось сыграть раунд') + ' — ' + DUEL_DROPS_C + ' бросков.<br>Итоги через ' + hh + ' ч ' + mm + ' м. Призы: ' + prizesTxt;
+    info.innerHTML = t('tourJoined', { d: DUEL_DROPS_C, h: hh, m2: mm, pz: prizesTxt });
     play.classList.remove('hidden');
-    play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>Играть раунд';
+    play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('tourPlayBtn');
   } else if (v.joined >= v.maxPlayers){
-    info.textContent = 'Все ' + v.maxPlayers + ' мест заняты. Создай свой турнир!'; play.classList.add('hidden');
+    info.textContent = t('tourFull', { m: v.maxPlayers }); play.classList.add('hidden');
   } else {
-    info.innerHTML = 'Ставка: <b>' + v.stake + '</b> ' + IC_GEM + ' · мест: ' + v.joined + '/' + v.maxPlayers + ' · одна колода на всех.<br>Топ-3 делят банк: ' + prizesTxt + '<br>До итогов: ' + hh + ' ч ' + mm + ' м.';
+    info.innerHTML = t('tourOpen', { s: v.stake, g: IC_GEM, j: v.joined, m: v.maxPlayers, pz: prizesTxt, h: hh, m2: mm });
     play.classList.remove('hidden');
-    play.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg>Вступить (−' + v.stake + ' <svg class="ic"><use href="#i-gem"/></svg>)';
+    play.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg>' + t('tourJoinBtn', { s: v.stake, g: '<svg class="ic"><use href="#i-gem"/></svg>' });
   }
   list.innerHTML = '';
   if (v.players && v.players.length){
@@ -1560,12 +1678,12 @@ function renderTour(){
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
       var gm = document.createElement('span'); gm.className = 'gm';
       if (v.status === 'done' && r.prize) gm.innerHTML = r.score + ' (+' + r.prize + ' ' + IC_GEM + ')';
-      else gm.textContent = r.played ? r.score : 'играет';
+      else gm.textContent = r.played ? r.score : t('tourPlaying');
       div.appendChild(rk); div.appendChild(nm); div.appendChild(gm);
       list.appendChild(div);
     }
   } else {
-    list.innerHTML = '<div class="best">Пока никого — стань первым участником!</div>';
+    list.innerHTML = '<div class="best">' + t('tourEmpty') + '</div>';
   }
 }
 function openTour(){
@@ -1573,7 +1691,7 @@ function openTour(){
   showTourScreen(); tourState = null; renderTour();
   wapi('/tour/state', { tour: tourParam.raw }, function(d){
     tourState = (d && d.ok) ? d.view : null;
-    if (!tourState){ $('tourInfo').textContent = 'Не удалось загрузить турнир.'; return; }
+    if (!tourState){ $('tourInfo').textContent = t('duelNoNet'); return; }
     renderTour();
   });
 }
@@ -1581,10 +1699,10 @@ function tourFinish(){
   showTourScreen();
   $('tourBig').textContent = score; $('tourBig').classList.remove('hidden');
   $('tourList').innerHTML = ''; $('btnTourPlay').classList.add('hidden');
-  $('tourInfo').innerHTML = '<span class="spinner"></span> Отправляю результат…';
+  $('tourInfo').innerHTML = '<span class="spinner"></span> ' + t('sending');
   wapi('/tour/score', { tour: tourParam.raw, score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
     refreshMe();
-    if (!d || !d.ok){ $('tourInfo').textContent = 'Не удалось отправить. Открой турнир по кнопке в чате ещё раз.'; return; }
+    if (!d || !d.ok){ $('tourInfo').textContent = t('tourSendFail'); return; }
     tourState = d.view; renderTour();
   });
 }
@@ -1592,7 +1710,7 @@ $('btnTourMenu').addEventListener('click', function(){ sfxClick(); hide('scrTour
 $('btnTourPlay').addEventListener('click', function(){
   audio(); sfxClick();
   var play = $('btnTourPlay');
-  play.disabled = true; play.innerHTML = '<span class="spinner"></span> Вхожу…';
+  play.disabled = true; play.innerHTML = '<span class="spinner"></span> ' + t('joining');
   wapi('/tour/join', { tour: tourParam.raw }, function(d){
     if (d && d.ok){
       duelActive = true; duelKind = 'tour';
@@ -1600,7 +1718,7 @@ $('btnTourPlay').addEventListener('click', function(){
       hide('scrTour'); startGame();
       return;
     }
-    if (d && d.error === 'balance'){ tourState && (tourState.me = { joined:false }); $('tourInfo').innerHTML = 'Не хватает кристаллов: нужно <b>' + (d.need || 50) + '</b> ' + IC_GEM + '. Забери бонус дня или сыграй обычные партии!'; play.classList.add('hidden'); return; }
+    if (d && d.error === 'balance'){ tourState && (tourState.me = { joined:false }); $('tourInfo').innerHTML = t('duelNoBalance', { n: d.need || 50, g: IC_GEM }); play.classList.add('hidden'); return; }
     openTour(); // full/attempts/closed/played — перерисуем состояние
   });
 });
@@ -1642,7 +1760,8 @@ function maybeClaimAch(){
     myBalance = d.balance; updateCrysUI(true);
     (d.granted || []).forEach(function(g, i){
       setTimeout(function(){
-        showToast('<svg class="ic"><use href="#i-medal"/></svg> Достижение: <b>' + g.title + '</b> +' + g.reward + ' ' + IC_GEM);
+        var atitle = (LANG === 'en' && achDefs && achDefs[g.code] && achDefs[g.code].en) ? achDefs[g.code].en : g.title;
+        showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achToast', { t: atitle, r: g.reward, g: IC_GEM }));
         sfxCombo(3); haptic('rec');
       }, i * 700);
     });
@@ -1669,8 +1788,8 @@ function renderHistory(){
   var list = $('topList');
   list.innerHTML = '';
   $('topMe').textContent = '';
-  if (!duelHist){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
-  if (!duelHist.length){ list.innerHTML = '<div class="best">Дуэлей пока не было — вызови кого-нибудь!</div>'; return; }
+  if (!duelHist){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
+  if (!duelHist.length){ list.innerHTML = '<div class="best">' + t('histEmpty') + '</div>'; return; }
   for (var i = 0; i < duelHist.length; i++){
     var h = duelHist[i];
     var div = document.createElement('div'); div.className = 'toprow';
@@ -1681,7 +1800,7 @@ function renderHistory(){
     else if (h.result === 'expired'){ rk.textContent = '—'; }
     else { rk.textContent = '…'; }
     var nm = document.createElement('span'); nm.className = 'nm';
-    nm.textContent = h.oppName ? 'против ' + h.oppName : (h.result === 'wait' ? 'ждём соперника' : 'без соперника');
+    nm.textContent = h.oppName ? t('vs', { n: h.oppName }) : (h.result === 'wait' ? t('tourWait') : t('tourNoOpp'));
     var wn = document.createElement('span'); wn.className = 'wn';
     wn.textContent = (h.myScore != null ? h.myScore : '—') + ':' + (h.oppScore != null ? h.oppScore : '—');
     var gm = document.createElement('span');
@@ -1695,7 +1814,7 @@ function renderAch(){
   var list = $('topList');
   list.innerHTML = '';
   $('topMe').textContent = '';
-  if (!achDefs){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
+  if (!achDefs){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
   var earnedN = 0, total = 0;
   for (var code in achDefs){
     total++;
@@ -1707,13 +1826,13 @@ function renderAch(){
     if (!got) div.style.opacity = '.45';
     var rk = document.createElement('span'); rk.className = 'rk';
     rk.innerHTML = '<svg class="ic"' + (got ? '' : ' style="filter:grayscale(1)"') + '><use href="#i-medal"/></svg>';
-    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = d.t;
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = LANG === 'en' ? (d.en || d.t) : d.t;
     var gm = document.createElement('span'); gm.className = 'gm';
     gm.innerHTML = (got ? '✓ ' : '+') + d.r + ' ' + IC_GEM;
     div.appendChild(rk); div.appendChild(nm); div.appendChild(gm);
     list.appendChild(div);
   }
-  $('topMe').textContent = 'Собрано: ' + earnedN + ' из ' + total;
+  $('topMe').textContent = t('collected', { a: earnedN, b: total });
 }
 function renderTop(){
   $('topTabR').classList.toggle('on', topTab === 'r');
@@ -1724,10 +1843,10 @@ function renderTop(){
   if (topTab === 'a'){ renderAch(); return; }
   var list = $('topList');
   list.innerHTML = '';
-  if (!topData){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
+  if (!topData){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
   var rows = topTab === 'g' ? topData.global : topData.rivals;
   if (!rows || !rows.length){
-    list.innerHTML = '<div class="best">Пока пусто — выиграй дуэль и открой сезон!</div>';
+    list.innerHTML = '<div class="best">' + t('topEmpty') + '</div>';
   } else {
     for (var i = 0; i < rows.length; i++){
       var r = rows[i];
@@ -1742,7 +1861,7 @@ function renderTop(){
         nm.insertAdjacentHTML('afterbegin', '<svg class="ic"><use href="#i-crown"/></svg> ');
       }
       var wn = document.createElement('span'); wn.className = 'wn';
-      wn.textContent = r.wins + ' поб.';
+      wn.textContent = t('wins', { n: r.wins });
       var gm = document.createElement('span'); gm.className = 'gm';
       gm.innerHTML = r.gems + ' ' + IC_GEM;
       div.appendChild(rk); div.appendChild(nm); div.appendChild(wn); div.appendChild(gm);
@@ -1750,12 +1869,12 @@ function renderTop(){
     }
   }
   var me = $('topMe');
-  if (topData.my && topData.my.rank) me.innerHTML = 'Твоё место в мире: <b>#' + topData.my.rank + '</b> · ' + topData.my.gems + ' ' + IC_GEM + ' · побед: ' + topData.my.wins;
-  else me.textContent = 'Выиграй дуэль, чтобы попасть в топ!';
+  if (topData.my && topData.my.rank) me.innerHTML = t('topMy', { r: topData.my.rank, g2: topData.my.gems, g: IC_GEM, w: topData.my.wins });
+  else me.textContent = t('topGoWin');
   var left = topData.endsAt - Date.now();
   if (left > 0){
     var dd = Math.floor(left / 86400000), hh = Math.floor(left % 86400000 / 3600000);
-    $('topSeason').textContent = 'До конца сезона: ' + (dd > 0 ? dd + ' д ' : '') + hh + ' ч';
+    $('topSeason').textContent = t('seasonEnds', { d: dd > 0 ? t('dd', { d: dd, h: hh }) : t('hh', { h: hh }) });
   } else $('topSeason').textContent = '';
 }
 function openTop(){
@@ -1802,9 +1921,56 @@ $('btnInvite').addEventListener('click', function(){
   if (tg && tg.openTelegramLink){
     try {
       tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) +
-        '&text=' + encodeURIComponent('Сыграем в БлокПоп? Сливай блоки, собирай 2048 и попади в рейтинг чата!'));
+        '&text=' + encodeURIComponent(t('inviteText')));
     } catch(e){}
   }
+});
+function setBtn(id, icon, key, extra){
+  var el = $(id); if (!el) return;
+  el.innerHTML = '<svg class="ic"><use href="#i-' + icon + '"/></svg>' + (extra || '') + t(key);
+}
+function applyLang(){
+  document.documentElement.lang = LANG;
+  var hudL = document.querySelectorAll('#hud .lbl');
+  if (hudL[0]) hudL[0].textContent = t('score');
+  if (hudL[1]) hudL[1].textContent = t('best');
+  var cl = document.querySelector('#crysPill .lbl'); if (cl) cl.textContent = t('crystals');
+  var sub = document.querySelector('#scrMenu .sub'); if (sub) sub.innerHTML = t('sub');
+  $('menuBest').textContent = t('bestN', { n: best });
+  setBtn('btnPlay', 'play', 'play');
+  setBtn('btnDuel', 'duel', 'duel');
+  setBtn('btnTop', 'trophy', 'seasonTop');
+  $('btnDaily').innerHTML = '<svg class="ic"><use href="#i-cal"/></svg>' + t('dailyBtn') +
+    '<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span>';
+  updateDailyBadge();
+  setBtn('btnInvite', 'invite', 'invite', ' ');
+  var pt = document.querySelector('#scrPause .logo'); if (pt) pt.textContent = t('pause');
+  setBtn('btnResume', 'play', 'resume');
+  setBtn('btnRestart1', 'restart', 'restartBtn');
+  setBtn('btnMenu1', 'home', 'toMenu', ' ');
+  setBtn('btnMenu2', 'home', 'toMenu', ' ');
+  var ot = document.querySelector('#scrOver .overttl'); if (ot) ot.textContent = t('gameOver');
+  $('newRec').innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> ' + t('newRecord');
+  setBtn('btnAgain', 'restart', 'again');
+  setBtn('btnShare', 'share', 'share');
+  var tt = document.querySelector('#scrTop .logo'); if (tt) tt.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> ' + t('seasonTop');
+  $('topTabR').textContent = t('circle'); $('topTabG').textContent = t('world');
+  $('topTabH').textContent = t('duelsTab'); $('topTabA').textContent = t('badges');
+  setBtn('btnTopClose', 'home', 'toMenu', ' ');
+  var dt = document.querySelector('#scrDaily .logo'); if (dt) dt.innerHTML = '<svg class="ic"><use href="#i-cal"/></svg> ' + t('dailyTitle');
+  setBtn('btnDailyMenu', 'home', 'toMenu', ' ');
+  var trt = document.querySelector('#scrTour .logo'); if (trt) trt.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg> ' + t('tourTitle');
+  setBtn('btnTourMenu', 'home', 'toMenu', ' ');
+  setBtn('btnDuelRematch', 'duel', 'rematch');
+  setBtn('btnDuelMenu', 'home', 'toMenu', ' ');
+  var lb = $('btnLang'); if (lb) lb.textContent = LANG === 'ru' ? 'English' : 'Русский';
+  updateCrysUI();
+}
+$('btnLang').addEventListener('click', function(){
+  sfxClick();
+  LANG = LANG === 'ru' ? 'en' : 'ru';
+  lsSet('bp_lang', LANG);
+  applyLang();
 });
 $('tglSound').addEventListener('click', toggleSound);
 $('tglSound2').addEventListener('click', toggleSound);
@@ -1821,7 +1987,7 @@ $('tglVib').addEventListener('click', function(){
 // ---------- Поделиться ----------
 $('btnShare').addEventListener('click', function(){
   sfxClick();
-  var text = 'Я набрал(а) ' + score + ' очков в БлокПоп! 🎮 Сможешь побить мой рекорд?';
+  var text = t('shareText', { s: score });
   var link = TG_BOT_URL || (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param ? '' : '');
   if (tg && tg.openTelegramLink){
     try {
@@ -1834,13 +2000,14 @@ $('btnShare').addEventListener('click', function(){
 });
 
 // ---------- Инициализация ----------
-storeGet('bp_best', function(v){ best = parseInt(v,10)||0; updateHud(); $('menuBest').textContent='Рекорд: '+best; });
+storeGet('bp_best', function(v){ best = parseInt(v,10)||0; updateHud(); $('menuBest').textContent=t('bestN',{n:best}); });
 storeGet('bp_snd', function(v){ if(v==='0') sndOn=false; syncToggles(); });
 storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 storeGet('bp_vib', function(v){ if(v==='0'){ vibOn=false; $('tglVib').classList.add('off'); } });
 applyTheme();
+applyLang();
 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name){
-  $('userHello').textContent = 'Привет, ' + tg.initDataUnsafe.user.first_name + '!';
+  $('userHello').textContent = t('hello', { n: tg.initDataUnsafe.user.first_name });
 }
 newGrid();
 resize();
