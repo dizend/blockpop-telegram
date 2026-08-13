@@ -16,6 +16,10 @@
   .pill .val { font-size:19px; font-weight:bold; color:#fff; line-height:1.1; }
   #btnPause { width:44px; height:44px; border-radius:14px; border:2px solid rgba(255,255,255,.18); background:rgba(255,255,255,.10); color:#fff; font-size:18px; cursor:pointer; flex:none; }
   #cv { display:block; touch-action:none; z-index:1; }
+  #btnSkip { position:absolute; z-index:6; width:46px; height:46px; border-radius:15px; border:2px solid rgba(255,255,255,.20);
+             background:rgba(255,255,255,.10); color:#fff; font-size:20px; cursor:pointer; font-family:inherit; font-weight:bold; }
+  #btnSkip.cool { opacity:.35; }
+  #btnSkip:active:not(.cool) { transform:scale(.92); }
   .screen { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(24,16,45,.90); backdrop-filter:blur(6px); padding:24px; text-align:center; }
   .hidden { display:none !important; }
   .logo { font-size:min(13vw,58px); font-weight:bold; color:#fff; text-shadow:0 4px 0 rgba(0,0,0,.35); letter-spacing:1px; }
@@ -48,6 +52,7 @@
     <button id="btnPause" aria-label="Пауза">⏸</button>
   </div>
   <canvas id="cv"></canvas>
+  <button id="btnSkip" title="Заменить блок" style="display:none">♻️</button>
 </div>
 
 <div id="scrMenu" class="screen">
@@ -248,7 +253,10 @@ var grid = [];       // grid[c][r] -> block | null ; r=0 низ
 var blocks = [];     // все блоки на поле
 var uid = 1;
 var curBlock = null; // {v, col, x} — прицеливание
-var nextV = 2;
+var nextQ = [2, 4];  // очередь из двух следующих блоков
+var skipCooldown = 0; // 0 = замена блока доступна
+var SKIP_CD = 12;     // бросков до перезарядки замены
+var fcount = 0;
 var dropB = null;    // падающий блок
 var score = 0, best = 0, combo = 0, moveTick = 0;
 var milestones = {};
@@ -284,6 +292,11 @@ function resize(){
     if (b !== dropB) { b.y = b.targetY; b.vy = 0; }
   }
   if (curBlock) curBlock.x = cellX(curBlock.col)+cell/2;
+  var sb = $('btnSkip');
+  if (sb){
+    sb.style.left = Math.round((window.innerWidth - W)/2 + boardX) + 'px';
+    sb.style.top  = Math.round(cv.offsetTop + topZone - cell - 2) + 'px';
+  }
 }
 window.addEventListener('resize', resize);
 if (tg && tg.onEvent) { try { tg.onEvent('viewportChanged', resize); } catch(e){} }
@@ -295,12 +308,18 @@ function boardFull(){ for(var c=0;c<COLS;c++) if(colHeight(c)<ROWS) return false
 function cellX(c){ return boardX + c*cell; }
 function cellY(r){ return boardY + (ROWS-1-r)*cell; } // r=0 внизу
 function maxVal(){ var m=0; blocks.forEach(function(b){ if(b.v>m) m=b.v; }); return m; }
+function minSpawnV(){
+  // после каждой вехи младшие блоки навсегда уходят из выдачи — партия ускоряется
+  return milestones[2048] ? 16 : milestones[1024] ? 8 : milestones[512] ? 4 : 2;
+}
 function spawnPool(){
   var m = Math.max(maxVal(), 4);
-  var pool = [2,2,2,4,4,8];
-  if (m>=32) pool.push(8,16);
-  if (m>=128) pool.push(16,32);
-  if (m>=512) pool.push(32,64);
+  var vals = [2,2,2,4,4,8];
+  if (m>=32) vals.push(8,16);
+  if (m>=128) vals.push(16,32);
+  if (m>=512) vals.push(32,64);
+  var minV = minSpawnV(), pool = [];
+  for (var i=0;i<vals.length;i++) pool.push(Math.max(vals[i], minV));
   return pool;
 }
 function rndNext(){ var p = spawnPool(); return p[Math.floor(Math.random()*p.length)]; }
@@ -310,15 +329,29 @@ function startGame(){
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
-  nextV = rndNext();
+  nextQ = [rndNext(), rndNext()];
+  skipCooldown = 0;
   spawnCur();
   updateHud();
   state='aim';
   syncMusic();
 }
 function spawnCur(){
-  curBlock = { v: nextV, col: 2, x: cellX(2)+cell/2 };
-  nextV = rndNext();
+  curBlock = { v: nextQ.shift(), col: 2, x: cellX(2)+cell/2 };
+  nextQ.push(rndNext());
+}
+function useSkip(){
+  if (state!=='aim' || !curBlock || skipCooldown>0) return;
+  curBlock.v = nextQ.shift();
+  nextQ.push(rndNext());
+  skipCooldown = SKIP_CD;
+  updateSkipBtn();
+  sfxClick(); haptic('drop');
+}
+function updateSkipBtn(){
+  var b = $('btnSkip'); if (!b) return;
+  if (skipCooldown>0){ b.textContent = skipCooldown; b.classList.add('cool'); }
+  else { b.textContent = '♻️'; b.classList.remove('cool'); }
 }
 
 // ---------- Бросок ----------
@@ -332,6 +365,7 @@ function tryDrop(col){
   dropB = b;
   curBlock = null;
   state = 'drop';
+  if (skipCooldown>0){ skipCooldown--; updateSkipBtn(); }
   sfxDrop(); haptic('drop');
 }
 
@@ -405,6 +439,9 @@ function checkMilestone(v){
     if (boomed>0){ score += boomed*thr*2; }
     bannerTxt = '💥 БУМ! ' + v + '!'; bannerT = 90; shakeT = 14;
     sfxBoom(); haptic('boom');
+    // младшие блоки уходят и из очереди выдачи
+    var minV = minSpawnV();
+    for (var qi=0; qi<nextQ.length; qi++) if (nextQ[qi] < minV) nextQ[qi] = minV;
     applyGravity();
   }
 }
@@ -545,11 +582,29 @@ function draw(){
     var endY = landR>=ROWS ? boardY : cellY(landR);
     ctx.beginPath(); ctx.moveTo(tx, topZone-2); ctx.lineTo(tx, endY); ctx.stroke();
     ctx.setLineDash([]);
-    // следующий
+    // очередь: следующий и за ним
     ctx.fillStyle='rgba(255,255,255,.55)';
     ctx.font='11px Arial'; ctx.textAlign='center';
-    ctx.fillText('след.', boardX+boardW-cell*0.4, topZone-cell-10);
-    drawBlock(boardX+boardW-cell*0.78, topZone-cell*0.95, nextV, 0.52);
+    ctx.fillText('след.', boardX+boardW-cell*0.55, topZone-cell-10);
+    ctx.globalAlpha = 0.45;
+    drawBlock(boardX+boardW-cell*1.35, topZone-cell*0.82, nextQ[1], 0.36);
+    ctx.globalAlpha = 1;
+    drawBlock(boardX+boardW-cell*0.92, topZone-cell*0.95, nextQ[0], 0.52);
+  }
+  // предупреждение: колонка почти полна
+  if (state==='aim'||state==='drop'||state==='resolve'||state==='pause') for (c=0;c<COLS;c++){
+    var hgt = colHeight(c);
+    if (hgt>=ROWS-1){
+      var pulse = 0.16 + 0.16*Math.abs(Math.sin(fcount*0.09));
+      var gd = ctx.createLinearGradient(0, boardY, 0, boardY+cell*1.8);
+      gd.addColorStop(0, 'rgba(255,60,60,'+(hgt>=ROWS?0.45:pulse)+')');
+      gd.addColorStop(1, 'rgba(255,60,60,0)');
+      ctx.fillStyle = gd;
+      rr(cellX(c)+2, boardY-2, cell-4, cell*1.8, 10); ctx.fill();
+      ctx.strokeStyle = 'rgba(255,80,80,'+(0.35+0.35*Math.abs(Math.sin(fcount*0.09)))+')';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath(); ctx.moveTo(cellX(c)+4, boardY); ctx.lineTo(cellX(c)+cell-4, boardY); ctx.stroke();
+    }
   }
 
   // частицы
@@ -591,6 +646,12 @@ function draw(){
 // ---------- Игровой цикл ----------
 var resolveWait = 0;
 function step(){
+  fcount++;
+  var sb = $('btnSkip');
+  if (sb){
+    var want = (state==='aim') ? 'block' : 'none';
+    if (sb.style.display !== want) sb.style.display = want;
+  }
   // физика падения (замирает на паузе)
   if (state!=='pause') for (var i=0;i<blocks.length;i++){
     var b = blocks[i];
@@ -695,6 +756,7 @@ $('btnMenu1').addEventListener('click', function(){ sfxClick(); openMenu(); });
 $('btnMenu2').addEventListener('click', function(){ sfxClick(); openMenu(); });
 function toggleSound(){ sndOn=!sndOn; storeSet('bp_snd', sndOn?'1':'0'); syncToggles(); sfxClick(); }
 function toggleMusic(){ musOn=!musOn; storeSet('bp_mus', musOn?'1':'0'); syncToggles(); syncMusic(); sfxClick(); }
+$('btnSkip').addEventListener('click', function(e){ e.stopPropagation(); audio(); useSkip(); });
 $('tglSound').addEventListener('click', toggleSound);
 $('tglSound2').addEventListener('click', toggleSound);
 $('tglMusic').addEventListener('click', toggleMusic);
@@ -722,6 +784,7 @@ storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name){
   $('userHello').textContent = 'Привет, ' + tg.initDataUnsafe.user.first_name + '! 👋';
 }
+newGrid();
 resize();
 setTimeout(resize, 300);
 syncToggles();
