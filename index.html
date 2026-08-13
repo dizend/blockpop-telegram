@@ -47,6 +47,17 @@
   .newrec { color:#ffe14d; font-size:18px; font-weight:bold; animation:blink 1s infinite; }
   @keyframes blink { 50% { opacity:.35; } }
   #userHello { color:#8f7fc9; font-size:13px; }
+  .toptabs { display:flex; gap:8px; }
+  .toptab { border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#b7a8e8; border-radius:14px; padding:8px 18px; font-size:15px; font-weight:bold; cursor:pointer; font-family:inherit; }
+  .toptab.on { color:#fff; border-color:#ffe14d; background:rgba(255,225,77,.12); }
+  #topList { width:100%; max-width:360px; display:flex; flex-direction:column; gap:6px; max-height:44vh; overflow-y:auto; }
+  .toprow { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.10); border-radius:14px; padding:8px 12px; }
+  .toprow.me { border-color:#ffe14d; background:rgba(255,225,77,.10); }
+  .toprow .rk { width:28px; text-align:center; font-weight:bold; color:#b7a8e8; flex:none; }
+  .toprow .rk.gold { color:#ffe14d; } .toprow .rk.silv { color:#cfd8e3; } .toprow .rk.brnz { color:#e8a06b; }
+  .toprow .nm { flex:1; color:#fff; font-weight:bold; overflow:hidden; text-overflow:ellipsis; white-space:nowrap; text-align:left; }
+  .toprow .gm { color:#ffe14d; font-weight:bold; flex:none; }
+  .toprow .wn { color:#8f7fc9; font-size:12px; flex:none; }
 </style>
 </head>
 <body>
@@ -84,6 +95,7 @@
   <button class="btn blue hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
   <div class="best hidden" id="bonusMsg"></div>
   <button class="btn hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
+  <button class="btn blue hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
   <button class="btn ghost hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
@@ -101,6 +113,18 @@
     <button class="tgl" id="tglSound2" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="tgl" id="tglMusic2" title="Музыка"><svg class="ic"><use href="#i-music"/></svg></button>
   </div>
+</div>
+
+<div id="scrTop" class="screen hidden">
+  <div class="logo" style="font-size:min(9vw,34px)"><svg class="ic"><use href="#i-trophy"/></svg> Топ сезона</div>
+  <div class="toptabs">
+    <button class="toptab on" id="topTabR">Мой круг</button>
+    <button class="toptab" id="topTabG">Мир</button>
+  </div>
+  <div id="topList"></div>
+  <div class="best" id="topMe"></div>
+  <div class="best" id="topSeason" style="font-size:13px"></div>
+  <button class="btn ghost" id="btnTopClose"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
 <div id="scrDuel" class="screen hidden">
@@ -1059,6 +1083,59 @@ function shareDuel(){
 $('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 if (tg) $('btnDuel').classList.remove('hidden');
 $('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
+
+// ---------- Топ сезона ----------
+var topData = null, topTab = 'r';
+function renderTop(){
+  var list = $('topList');
+  list.innerHTML = '';
+  if (!topData){ list.innerHTML = '<div class="best"><span class="spinner"></span> Загружаю…</div>'; return; }
+  $('topTabR').classList.toggle('on', topTab === 'r');
+  $('topTabG').classList.toggle('on', topTab === 'g');
+  var rows = topTab === 'g' ? topData.global : topData.rivals;
+  if (!rows || !rows.length){
+    list.innerHTML = '<div class="best">Пока пусто — выиграй дуэль и открой сезон!</div>';
+  } else {
+    for (var i = 0; i < rows.length; i++){
+      var r = rows[i];
+      var div = document.createElement('div');
+      div.className = 'toprow' + (r.user_id === topData.myId ? ' me' : '');
+      var rk = document.createElement('span');
+      rk.className = 'rk' + (i===0?' gold':i===1?' silv':i===2?' brnz':'');
+      rk.textContent = i + 1;
+      var nm = document.createElement('span'); nm.className = 'nm';
+      nm.textContent = (r.user_id === topData.myId ? '⭐ ' : '') + (r.name || 'Игрок');
+      var wn = document.createElement('span'); wn.className = 'wn';
+      wn.textContent = r.wins + ' поб.';
+      var gm = document.createElement('span'); gm.className = 'gm';
+      gm.innerHTML = r.gems + ' ' + IC_GEM;
+      div.appendChild(rk); div.appendChild(nm); div.appendChild(wn); div.appendChild(gm);
+      list.appendChild(div);
+    }
+  }
+  var me = $('topMe');
+  if (topData.my && topData.my.rank) me.innerHTML = 'Твоё место в мире: <b>#' + topData.my.rank + '</b> · ' + topData.my.gems + ' ' + IC_GEM + ' · побед: ' + topData.my.wins;
+  else me.textContent = 'Выиграй дуэль, чтобы попасть в топ!';
+  var left = topData.endsAt - Date.now();
+  if (left > 0){
+    var dd = Math.floor(left / 86400000), hh = Math.floor(left % 86400000 / 3600000);
+    $('topSeason').textContent = 'До конца сезона: ' + (dd > 0 ? dd + ' д ' : '') + hh + ' ч';
+  } else $('topSeason').textContent = '';
+}
+function openTop(){
+  hide('scrMenu'); show('scrTop'); state = 'menu';
+  topData = null; renderTop();
+  wapi('/top', null, function(d){
+    if (d && d.ok) topData = d;
+    else topData = { global: [], rivals: [], my: null, myId: 0, endsAt: 0 };
+    renderTop();
+  });
+}
+$('btnTop').addEventListener('click', function(){ sfxClick(); openTop(); });
+$('btnTopClose').addEventListener('click', function(){ sfxClick(); hide('scrTop'); show('scrMenu'); });
+$('topTabR').addEventListener('click', function(){ sfxClick(); topTab = 'r'; renderTop(); });
+$('topTabG').addEventListener('click', function(){ sfxClick(); topTab = 'g'; renderTop(); });
+if (tg) $('btnTop').classList.remove('hidden');
 
 if (tg) $('btnInvite').classList.remove('hidden');
 $('btnInvite').addEventListener('click', function(){
