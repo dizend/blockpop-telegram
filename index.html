@@ -182,6 +182,7 @@
     <button class="mtile t-pu hidden" id="btnShop"><svg class="ic"><use href="#i-cart"/></svg>Магазин</button>
   </div>
   <button class="btn ghost slim hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
+  <div class="best hidden" id="refInfo" style="font-size:12px"></div>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="tgl" id="tglMusic" title="Музыка"><svg class="ic"><use href="#i-music"/></svg></button>
@@ -359,12 +360,15 @@ function refreshMe(){
     clearTimeout(crysTimer);
     crysTimer = setTimeout(function(){ if (crysLoading){ crysLoading = false; updateCrysUI(); } }, 8000);
   }
-  wapi('/me', null, function(d){
+  var mePayload = null;
+  if (pendingRef){ mePayload = { ref: pendingRef }; pendingRef = null; }
+  wapi('/me', mePayload, function(d){
     crysLoading = false; clearTimeout(crysTimer);
     if (d && d.ok){
       myBalance=d.balance; bonusState=d.bonus;
       if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); }
       if (d.skin !== undefined){ applyEquipped(d.skin, d.ftheme); undoCredits = d.undoCredits || 0; }
+      if (d.refs){ myRefs = d.refs; updateRefInfo(); }
     }
     updateCrysUI(true);
   });
@@ -461,6 +465,8 @@ var I18N = {
     undo10:'Отмены ×10', undo10_d:'10 отмен хода без траты кристаллов', undoLeft:'осталось: {n}',
     bought:'Куплено!',
     achLockNamed:'За «{t}»', achHint:'Открывается за достижение «{t}». Прогресс — во вкладке «Значки» экрана «Топ сезона».',
+    refInfo:'Приглашено друзей: {a} · наград получено: {b}',
+    refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
     sub: 'Drop blocks into columns. Equal neighbours merge and double. Reach <b style="color:#ffe14d">2048</b>!',
@@ -518,6 +524,8 @@ var I18N = {
     undo10:'Undos ×10', undo10_d:'10 move undos without spending crystals', undoLeft:'left: {n}',
     bought:'Purchased!',
     achLockNamed:'For "{t}"', achHint:'Unlocked by the achievement "{t}". Track progress in the Badges tab of the Season top screen.',
+    refInfo:'Friends invited: {a} · rewards earned: {b}',
+    refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
 var LANG = 'ru';
@@ -778,11 +786,13 @@ function mulberry32(a){
 var DUEL_POOL = [2,2,2,4,4,8,8,16];
 var DUEL_DROPS_C = 40;
 var duelActive = false, duelKind = 'duel', duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
-var duelParam = null, tourParam = null, startWithDaily = false;
+var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = null, myRefs = null;
 (function(){
   try {
     var sp = (tg && tg.initDataUnsafe && tg.initDataUnsafe.start_param) || '';
     if (sp === 'daily'){ startWithDaily = true; return; }
+    var mr = /^ref_(\d{1,15})$/.exec(sp);
+    if (mr){ pendingRef = mr[1]; return; }
     var m = /^d(\d+)x([a-z0-9]{8,32})$/.exec(sp);
     if (m){ duelParam = { stake:+m[1], token:m[2], raw:sp }; return; }
     var mt = /^t(\d+)x([a-z0-9]{8,32})$/.exec(sp);
@@ -2166,18 +2176,28 @@ $('topTabH').addEventListener('click', function(){
 });
 if (tg) $('btnTop').classList.remove('hidden');
 
+function updateRefInfo(){
+  var el = $('refInfo'); if (!el) return;
+  if (myRefs && myRefs.invited > 0){
+    el.textContent = t('refInfo', { a: myRefs.invited, b: myRefs.rewarded });
+    el.classList.remove('hidden');
+  } else el.classList.add('hidden');
+}
+function myRefLink(){
+  var myId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id;
+  return myId ? 'https://t.me/BlockPopGameBot/play?startapp=ref_' + myId : TG_BOT_URL;
+}
 if (tg) $('btnInvite').classList.remove('hidden');
 $('btnInvite').addEventListener('click', function(){
   sfxClick();
-  if (tg && tg.switchInlineQuery){
-    try { tg.switchInlineQuery('', ['users','groups']); return; } catch(e){}
-  }
   if (tg && tg.openTelegramLink){
     try {
-      tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) +
-        '&text=' + encodeURIComponent(t('inviteText')));
+      tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(myRefLink()) +
+        '&text=' + encodeURIComponent(t('refShare')));
+      return;
     } catch(e){}
   }
+  if (navigator.share){ navigator.share({ url: myRefLink(), text: t('refShare') }).catch(function(){}); }
 });
 function setBtn(id, icon, key, extra){
   var el = $(id); if (!el) return;
