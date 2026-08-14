@@ -460,6 +460,7 @@ var I18N = {
     sk_gold:'Золото', sk_gold_d:'Только за «Собрал 2048!»', th_space:'Космос', th_space_d:'Звёздное поле боя',
     undo10:'Отмены ×10', undo10_d:'10 отмен хода без траты кристаллов', undoLeft:'осталось: {n}',
     bought:'Куплено!',
+    achLockNamed:'За «{t}»', achHint:'Открывается за достижение «{t}». Прогресс — во вкладке «Значки» экрана «Топ сезона».',
   },
   en: {
     sub: 'Drop blocks into columns. Equal neighbours merge and double. Reach <b style="color:#ffe14d">2048</b>!',
@@ -516,6 +517,7 @@ var I18N = {
     sk_gold:'Gold', sk_gold_d:'Only for "Reached 2048!"', th_space:'Space', th_space_d:'A starry battlefield',
     undo10:'Undos ×10', undo10_d:'10 move undos without spending crystals', undoLeft:'left: {n}',
     bought:'Purchased!',
+    achLockNamed:'For "{t}"', achHint:'Unlocked by the achievement "{t}". Track progress in the Badges tab of the Season top screen.',
   }
 };
 var LANG = 'ru';
@@ -1969,7 +1971,13 @@ function renderShop(){
       btn.textContent = t('equipBtn');
       btn.onclick = function(){ shopEquip(it.kind, isDefault ? '' : id, btn); };
     } else if (it.ach){
-      btn.className = 'sbtn lock'; btn.innerHTML = '<svg class="ic"><use href="#i-lock"/></svg> ' + t('achLock'); btn.disabled = true;
+      btn.className = 'sbtn lock';
+      var achName = (LANG === 'en' ? it.achEn : it.achT) || t('achLock');
+      btn.innerHTML = '<svg class="ic"><use href="#i-lock"/></svg> ' + t('achLockNamed', { t: achName });
+      btn.onclick = function(){
+        sfxClick();
+        showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achHint', { t: achName }));
+      };
     } else {
       btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
       if (shopState.balance < it.cost) btn.disabled = true;
