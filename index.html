@@ -223,7 +223,9 @@
   <div class="sub" id="dailyInfo"></div>
   <div class="bigscore hidden" id="dailyBig">0</div>
   <div class="best hidden" id="dailyMy"></div>
-  <div id="dailyList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px;max-height:36vh;overflow-y:auto"></div>
+  <div class="best" id="questsHdr" style="font-weight:bold"></div>
+  <div id="questList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px"></div>
+  <div id="dailyList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px;max-height:26vh;overflow-y:auto"></div>
   <button class="btn green" id="btnDailyPlay">Играть</button>
   <button class="btn ghost" id="btnDailyMenu"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
@@ -466,6 +468,7 @@ var I18N = {
     bought:'Куплено!',
     achLockNamed:'За «{t}»', achHint:'Открывается за достижение «{t}». Прогресс — во вкладке «Значки» экрана «Топ сезона».',
     refInfo:'Приглашено друзей: {a} · наград получено: {b}',
+    questsHdr:'Задания дня', questDone:'Задание выполнено: {t} — забери награду!', claimBtn:'Забрать +{r}', claimed:'Получено {r}',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -525,6 +528,7 @@ var I18N = {
     bought:'Purchased!',
     achLockNamed:'For "{t}"', achHint:'Unlocked by the achievement "{t}". Track progress in the Badges tab of the Season top screen.',
     refInfo:'Friends invited: {a} · rewards earned: {b}',
+    questsHdr:'Daily quests', questDone:'Quest complete: {t} — claim your reward!', claimBtn:'Claim +{r}', claimed:'Claimed {r}',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -1036,11 +1040,12 @@ function gameOver(){
   if (isRec) show('newRec'); else hide('newRec');
   if (isRec) confetti(40);
   maybeClaimAch();
+  setTimeout(function(){ checkQuests(true); }, 1200);
   submitScore(score);
   if (score > 0 && authPayload()){
     var oe0 = $('overEarn');
     if (oe0){ oe0.innerHTML = '<span class="spinner"></span> ' + t('crediting'); oe0.classList.remove('hidden'); }
-    wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
+    wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
       var oe = $('overEarn'); if (!oe) return;
       if (!d || !d.ok){ oe.classList.add('hidden'); return; }
       myBalance = d.balance; updateCrysUI(true);
@@ -1644,6 +1649,7 @@ function duelFinish(){
   duelActive = false;
   sfxLand();
   maybeClaimAch();
+  setTimeout(function(){ checkQuests(true); }, 1500);
   if (duelKind === 'daily'){ dailyFinish(); return; }
   if (duelKind === 'tour'){ tourFinish(); return; }
   duelUI({ title:t('duelTitle'), big: score, text: '<span class="spinner"></span> ' + t('sending'), start:false });
@@ -1743,6 +1749,7 @@ function renderDaily(){
 function openDaily(){
   showDailyScreen();
   dailyState = null; renderDaily();
+  checkQuests(false);
   wapi('/daily/state', null, function(d){
     dailyState = (d && d.ok) ? d : { played:false, tries:2, triesMax:2, top:[], players:0, endsAt:Date.now(), myId:0 };
     renderDaily(); updateDailyBadge();
@@ -2032,6 +2039,71 @@ $('btnShop').addEventListener('click', function(){ audio(); sfxClick(); openShop
 $('btnShopClose').addEventListener('click', function(){ sfxClick(); hide('scrShop'); show('scrMenu'); });
 if (tg) $('btnShop').classList.remove('hidden');
 
+// ---------- Задания дня 📋 ----------
+var questState = null;
+function questTitle(q){ return LANG === 'en' ? q.tEn : q.tRu; }
+function renderQuests(){
+  var hdr = $('questsHdr'), list = $('questList');
+  if (!hdr || !list) return;
+  if (!questState || !questState.quests){ hdr.textContent = ''; list.innerHTML = ''; return; }
+  hdr.textContent = t('questsHdr');
+  list.innerHTML = '';
+  questState.quests.forEach(function(q){
+    var div = document.createElement('div');
+    div.className = 'toprow';
+    var rk = document.createElement('span'); rk.className = 'rk' + (q.done ? ' gold' : '');
+    rk.textContent = q.done ? '✓' : (q.n > 1 ? (q.progress + '/' + q.n) : '·');
+    if (!q.done && q.n > 1) rk.style.fontSize = '11px';
+    var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = questTitle(q);
+    div.appendChild(rk); div.appendChild(nm);
+    if (q.done && !q.claimed){
+      var btn = document.createElement('button');
+      btn.className = 'sbtn';
+      btn.innerHTML = t('claimBtn', { r: q.r + ' ' + IC_GEM });
+      btn.onclick = (function(qq, bb){ return function(){
+        bb.disabled = true; bb.innerHTML = '<span class="spinner"></span>';
+        wapi('/quests/claim', { id: qq.id }, function(d){
+          if (d && d.ok){
+            qq.claimed = true;
+            myBalance = d.balance; updateCrysUI(true);
+            sfxCombo(3); haptic('rec'); gemRain(10);
+          }
+          renderQuests();
+        });
+      }; })(q, btn);
+      div.appendChild(btn);
+    } else {
+      var gm = document.createElement('span'); gm.className = 'gm' + (q.claimed ? ' zero' : '');
+      gm.innerHTML = (q.claimed ? '✓ ' : '+') + q.r + ' ' + IC_GEM;
+      if (q.claimed) div.style.opacity = '.65';
+      div.appendChild(gm);
+    }
+    list.appendChild(div);
+  });
+}
+function questsSeenKey(){ return 'bp_qseen_' + (questState ? questState.day : ''); }
+function checkQuests(showToasts){
+  if (!authPayload()) return;
+  wapi('/quests', null, function(d){
+    if (!d || !d.ok) return;
+    questState = d;
+    renderQuests();
+    var seen = {};
+    try { seen = JSON.parse(lsGet('bp_qseen_' + d.day) || '{}'); } catch(e){}
+    var newDone = d.quests.filter(function(q){ return q.done && !q.claimed && !seen[q.id]; });
+    d.quests.forEach(function(q){ if (q.done) seen[q.id] = 1; });
+    lsSet('bp_qseen_' + d.day, JSON.stringify(seen));
+    if (showToasts && newDone.length){
+      newDone.forEach(function(q, i){
+        setTimeout(function(){
+          showToast('<svg class="ic"><use href="#i-cal"/></svg> ' + t('questDone', { t: questTitle(q) }));
+          sfxCombo(3); haptic('rec');
+        }, i * 800);
+      });
+    }
+  });
+}
+
 // ---------- Тумблер напоминаний ----------
 var myNotify = 1;
 function updNotifTgl(){
@@ -2248,6 +2320,7 @@ function applyLang(){
   setBtn('btnShop', 'cart', 'shop');
   setBtn('btnShopClose', 'home', 'toMenu', ' ');
   if (!document.getElementById('scrShop').classList.contains('hidden')) renderShop();
+  renderQuests();
   var lb = $('btnLang'); if (lb) lb.textContent = LANG === 'ru' ? 'EN' : 'RU';
   updateCrysUI();
 }
