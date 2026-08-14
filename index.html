@@ -49,11 +49,24 @@
   @keyframes rot { to { transform:rotate(360deg); } }
   .spinner { width:.85em; height:.85em; border:2.5px solid rgba(255,255,255,.25); border-top-color:#fff; border-radius:50%; display:inline-block; vertical-align:-0.08em; animation:rot .8s linear infinite; }
   .btn:disabled { opacity:.65; }
-  .screen { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:center; gap:14px; background:rgba(24,16,45,.90); backdrop-filter:blur(6px); padding:24px; text-align:center; }
+  .screen { position:fixed; inset:0; z-index:20; display:flex; flex-direction:column; align-items:center; justify-content:flex-start; gap:12px; background:rgba(24,16,45,.90); backdrop-filter:blur(6px); padding:20px 24px; text-align:center; overflow-y:auto; }
+  .screen::before, .screen::after { content:''; margin:auto; flex:none; }
+  .menugrid { display:grid; grid-template-columns:1fr 1fr; gap:10px; width:100%; max-width:300px; }
+  .mtile { border:none; cursor:pointer; border-radius:18px; padding:12px 6px 10px; font-size:14px; font-weight:bold; color:#fff; font-family:inherit;
+           display:flex; flex-direction:column; align-items:center; gap:5px; transition:transform .06s; }
+  .mtile .ic { width:1.7em; height:1.7em; margin:0; }
+  .mtile:active { transform:translateY(2px); }
+  .t-or { background:linear-gradient(180deg,#ff9d4d,#ff6b3d); box-shadow:0 4px 0 #c74a24; }
+  .t-rd { background:linear-gradient(180deg,#ff7a7a,#f04444); box-shadow:0 4px 0 #a82525; }
+  .t-bl { background:linear-gradient(180deg,#5ec8ff,#3d8bff); box-shadow:0 4px 0 #2456b8; }
+  .t-pu { background:linear-gradient(180deg,#c39bff,#8e5cf7); box-shadow:0 4px 0 #5a2ea6; }
+  .btn.slim { padding:10px 24px; font-size:16px; box-shadow:0 4px 0 #2456b8; min-width:0; }
+  .btn.ghost.slim { padding:8px 18px; font-size:14px; box-shadow:none; }
+  .tgl { width:48px; height:48px; border-radius:15px; }
   .hidden { display:none !important; }
-  .logo { font-size:min(13vw,58px); font-weight:bold; color:#fff; text-shadow:0 4px 0 rgba(0,0,0,.35); letter-spacing:1px; }
+  .logo { font-size:min(11vw,48px); font-weight:bold; color:#fff; text-shadow:0 4px 0 rgba(0,0,0,.35); letter-spacing:1px; }
   .logo .c1{color:#ff6b6b}.logo .c2{color:#ffb84d}.logo .c3{color:#ffe14d}.logo .c4{color:#6bd96b}.logo .c5{color:#5ec8ff}.logo .c6{color:#c39bff}
-  .sub { color:#b7a8e8; font-size:15px; max-width:320px; line-height:1.45; }
+  .sub { color:#b7a8e8; font-size:14px; max-width:320px; line-height:1.4; }
   .btn { appearance:none; border:none; cursor:pointer; border-radius:20px; padding:14px 34px; font-size:20px; font-weight:bold; color:#fff; font-family:inherit;
          background:linear-gradient(180deg,#ff9d4d,#ff6b3d); box-shadow:0 5px 0 #c74a24, 0 8px 16px rgba(0,0,0,.35); transition:transform .06s; min-width:220px; }
   .btn:active { transform:translateY(3px); box-shadow:0 2px 0 #c74a24; }
@@ -63,7 +76,15 @@
   .btn.green:active { box-shadow:0 2px 0 #23803a; }
   .btn.ghost { background:rgba(255,255,255,.10); box-shadow:none; border:2px solid rgba(255,255,255,.22); font-size:16px; padding:10px 22px; min-width:0; }
   .toggles { display:flex; gap:12px; }
-  .tgl { width:56px; height:56px; border-radius:18px; border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.10); font-size:24px; cursor:pointer; color:#fff; }
+  .tgl { border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.10); font-size:22px; cursor:pointer; color:#fff; }
+  @media (max-height: 640px){
+    #scrMenu .sub { display:none; }
+    #scrMenu .logo { font-size:32px; }
+    #scrMenu { gap:9px; padding:14px 20px; }
+    .btn { padding:11px 26px; font-size:18px; }
+    .mtile { padding:9px 4px 8px; font-size:13px; }
+    .tgl { width:42px; height:42px; }
+  }
   .tgl.off { opacity:.38; filter:grayscale(1); }
   .bigscore { font-size:52px; font-weight:bold; color:#ffe14d; text-shadow:0 3px 0 rgba(0,0,0,.4); line-height:1; }
   .overttl { font-size:min(11vw,44px); font-weight:bold; color:#ff6b6b; text-shadow:0 3px 0 rgba(0,0,0,.4); }
@@ -152,20 +173,22 @@
   <div class="best" id="menuBest">Рекорд: 0</div>
   <div class="pill" id="crysPill" style="display:none"><div class="lbl">Кристаллы</div><div class="val" id="crysVal"><svg class="ic"><use href="#i-gem"/></svg> —</div></div>
   <button class="btn green" id="btnPlay"><svg class="ic"><use href="#i-play"/></svg>Играть</button>
-  <button class="btn blue hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
+  <button class="btn blue slim hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
   <div class="best hidden" id="bonusMsg"></div>
-  <button class="btn hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
-  <button class="btn blue hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
-  <button class="btn hidden" id="btnShop" style="background:linear-gradient(180deg,#c39bff,#8e5cf7);box-shadow:0 5px 0 #5a2ea6, 0 8px 16px rgba(0,0,0,.35)"><svg class="ic"><use href="#i-cart"/></svg>Магазин</button>
-  <button class="btn hidden" id="btnDaily" style="position:relative"><svg class="ic"><use href="#i-cal"/></svg>Вызов дня<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
-  <button class="btn ghost hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
+  <div class="menugrid">
+    <button class="mtile t-or hidden" id="btnDaily" style="position:relative"><svg class="ic"><use href="#i-cal"/></svg>Вызов дня<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
+    <button class="mtile t-rd hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
+    <button class="mtile t-bl hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
+    <button class="mtile t-pu hidden" id="btnShop"><svg class="ic"><use href="#i-cart"/></svg>Магазин</button>
+  </div>
+  <button class="btn ghost slim hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
   <div class="toggles">
     <button class="tgl" id="tglSound" title="Звук"><svg class="ic"><use href="#i-sound"/></svg></button>
     <button class="tgl" id="tglMusic" title="Музыка"><svg class="ic"><use href="#i-music"/></svg></button>
     <button class="tgl" id="tglVib" title="Вибрация"><svg class="ic"><use href="#i-vib"/></svg></button>
     <button class="tgl hidden" id="tglNotif" title="Напоминания"><svg class="ic"><use href="#i-bell"/></svg></button>
+    <button class="tgl" id="btnLang" style="font-size:12px;font-weight:bold">EN</button>
   </div>
-  <button class="btn ghost" id="btnLang" style="font-size:13px;padding:6px 16px;min-width:0">English</button>
   <div id="userHello"></div>
 </div>
 
@@ -2197,7 +2220,7 @@ function applyLang(){
   setBtn('btnShop', 'cart', 'shop');
   setBtn('btnShopClose', 'home', 'toMenu', ' ');
   if (!document.getElementById('scrShop').classList.contains('hidden')) renderShop();
-  var lb = $('btnLang'); if (lb) lb.textContent = LANG === 'ru' ? 'English' : 'Русский';
+  var lb = $('btnLang'); if (lb) lb.textContent = LANG === 'ru' ? 'EN' : 'RU';
   updateCrysUI();
 }
 $('btnLang').addEventListener('click', function(){
