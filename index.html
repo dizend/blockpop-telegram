@@ -142,6 +142,7 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4c0-1.6 1.8-2.6 3.2-1.8l9.6 6.1c1.3.8 1.3 2.7 0 3.5l-9.6 6.1C9.8 20.2 8 19.2 8 17.6z"/></symbol>
   <symbol id="i-restart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" d="M19.2 12a7.2 7.2 0 1 1-2.1-5.1"/><path d="M21.8 3.2v6.2c0 .6-.4 1-1 1h-6.2z"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M12 14.2V4.6M8.3 7.8 12 4.1l3.7 3.7"/><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M5 12.8v4.9a2.3 2.3 0 0 0 2.3 2.3h9.4a2.3 2.3 0 0 0 2.3-2.3v-4.9"/></symbol>
+  <symbol id="i-story" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="9 4.5" stroke-linecap="round"/><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 8.4v7.2M8.4 12h7.2"/></symbol>
   <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4.2 9.6v4.8c0 .9.7 1.6 1.6 1.6h2.4l4.1 3.5c1 .9 2.6.1 2.6-1.2V7.7c0-1.3-1.6-2.1-2.6-1.2L8.2 10H5.8c-.9 0-1.6.7-1.6 1.6z" transform="translate(0,-1.2)"/><path fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" d="M17.6 8.6a4.6 4.6 0 0 1 0 6.2M20.2 6.4a8 8 0 0 1 0 10.6"/></symbol>
   <symbol id="i-music" viewBox="0 0 24 24"><circle cx="7.7" cy="17.8" r="3.1"/><circle cx="17.9" cy="15.9" r="3.1"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" d="M10.8 17.8V6.9l10.2-2.3v11.3"/></symbol>
   <symbol id="i-swap" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M6.8 8.2h8.4"/><path d="M14.6 4.4 20.4 8.2l-5.8 3.8z"/><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M17.2 15.8H8.8"/><path d="M9.4 12 3.6 15.8l5.8 3.8z"/></symbol>
@@ -268,6 +269,7 @@
   <div class="sub" id="duelText"></div>
   <button class="btn green" id="btnDuelStart">Вступить в дуэль</button>
   <button class="btn blue hidden" id="btnDuelRematch"><svg class="ic"><use href="#i-duel"/></svg>Реванш</button>
+  <button class="btn blue hidden" id="btnDuelStory"><svg class="ic"><use href="#i-story"/></svg>В сторис</button>
   <button class="btn ghost" id="btnDuelMenu"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
@@ -280,6 +282,7 @@
   <div class="best hidden" id="overEarn"></div>
   <button class="btn green" id="btnAgain"><svg class="ic"><use href="#i-restart"/></svg>Ещё раз</button>
   <button class="btn blue" id="btnShare"><svg class="ic"><use href="#i-share"/></svg>Поделиться</button>
+  <button class="btn blue hidden" id="btnStory"><svg class="ic"><use href="#i-story"/></svg>В сторис</button>
   <button class="btn ghost" id="btnMenu2"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
@@ -491,6 +494,8 @@ var I18N = {
     profSince:'В игре с {d}', profStyle:'Стиль: {s}', profBack:'Назад',
     profFail:'Не удалось загрузить профиль', profChampion:'Чемпион прошлого сезона',
     profTapHint:'Нажми на игрока в таблице — увидишь его профиль и стиль',
+    storyBtn:'В сторис', storyText:'Я набрал(а) {s} очков в БлокПоп! Сможешь больше? Играй:',
+    storyDuelText:'Я выиграл(а) дуэль в БлокПоп со счётом {s}! Вызовешь меня?',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -557,6 +562,8 @@ var I18N = {
     profSince:'Playing since {d}', profStyle:'Style: {s}', profBack:'Back',
     profFail:'Could not load the profile', profChampion:'Last season champion',
     profTapHint:'Tap a player in the table to see their profile and style',
+    storyBtn:'To story', storyText:'I scored {s} points in BlockPop! Can you beat me? Play:',
+    storyDuelText:'I won a BlockPop duel with {s} points! Dare to challenge me?',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -1083,6 +1090,7 @@ function gameOver(){
     });
   }
   updateHud();
+  $('btnStory').classList.toggle('hidden', !canStory());
   setTimeout(function(){ show('scrOver'); }, 600);
 }
 
@@ -1661,6 +1669,8 @@ function duelUI(opts){
   bs.classList.toggle('hidden', !opts.start);
   if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? '<span class="spinner"></span> ' + t('joining') : (opts.start === true ? t('play') : opts.start); }
   $('btnDuelRematch').classList.toggle('hidden', !opts.rematch);
+  if (opts.story != null) lastDuelStoryScore = opts.story;
+  $('btnDuelStory').classList.toggle('hidden', !(opts.story != null && canStory()));
   $('duelTitle').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg> ' + (opts.title || t('duelTitle'));
   showDuelScreen();
 }
@@ -1723,6 +1733,7 @@ function renderDuelDone(view){
   duelUI({
     title: view.draw ? t('drawT') : view.youWon ? t('victory') : t('defeat'),
     big: big, text: txt, start:false, rematch:true,
+    story: view.youWon ? view.myScore : null,
   });
   if (view.youWon){ sfxCombo(5); haptic('rec'); gemRain(28); } else if (!view.draw){ sfxOver(); }
 }
@@ -2355,6 +2366,25 @@ function myRefLink(){
   var myId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id;
   return myId ? 'https://t.me/BlockPopGameBot/play?startapp=ref_' + myId : TG_BOT_URL;
 }
+// ---------- Сторис ----------
+var STORY_IMG = 'https://dizend.github.io/blockpop-telegram/story.png';
+function canStory(){
+  try { return !!(tg && tg.shareToStory && tg.isVersionAtLeast && tg.isVersionAtLeast('7.8')); } catch(e){ return false; }
+}
+function shareStory(sc, duelMode){
+  if (!canStory()) return;
+  try {
+    var params = { text: t(duelMode ? 'storyDuelText' : 'storyText', { s: sc }) + '\n' + myRefLink() };
+    var u = tg.initDataUnsafe && tg.initDataUnsafe.user;
+    if (u && u.is_premium) params.widget_link = { url: myRefLink(), name: 'BlockPop!' };
+    tg.shareToStory(STORY_IMG, params);
+    haptic('med');
+  } catch(e){}
+}
+var lastDuelStoryScore = null;
+$('btnStory').addEventListener('click', function(){ sfxClick(); shareStory(score, false); });
+$('btnDuelStory').addEventListener('click', function(){ sfxClick(); if (lastDuelStoryScore != null) shareStory(lastDuelStoryScore, true); });
+
 if (tg) $('btnInvite').classList.remove('hidden');
 $('btnInvite').addEventListener('click', function(){
   sfxClick();
@@ -2414,6 +2444,8 @@ function applyLang(){
   var trt = document.querySelector('#scrTour .logo'); if (trt) trt.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg> ' + t('tourTitle');
   setBtn('btnTourMenu', 'home', 'toMenu', ' ');
   setBtn('btnDuelRematch', 'duel', 'rematch');
+  setBtn('btnStory', 'story', 'storyBtn');
+  setBtn('btnDuelStory', 'story', 'storyBtn');
   setBtn('btnDuelMenu', 'home', 'toMenu', ' ');
   setBtn('btnShop', 'cart', 'shop');
   setBtn('btnShopClose', 'home', 'toMenu', ' ');
