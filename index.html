@@ -127,6 +127,11 @@
   .toprow .wn { color:#8f7fc9; font-size:12px; flex:none; }
   .toprow .gm.neg { color:#ff8a80; }
   .toprow .gm.zero { color:#8f7fc9; }
+  .toprow.click { cursor:pointer; }
+  .toprow.click:active { transform:scale(.985); }
+  .flairimg { width:20px; height:20px; border-radius:5px; flex:none; vertical-align:-4px; }
+  #profCv { width:96px; height:96px; border-radius:20px; background:rgba(255,255,255,.06); border:2px solid rgba(255,255,255,.12); }
+  body.light #profCv { background:rgba(46,33,84,.05); border-color:rgba(46,33,84,.10); }
   .gemfall { position:fixed; top:-48px; z-index:40; pointer-events:none; animation:gfall linear forwards; }
   @keyframes gfall { to { transform:translateY(115vh) rotate(600deg); opacity:.9; } }
 </style>
@@ -216,6 +221,7 @@
   <div id="topList"></div>
   <div class="best" id="topMe"></div>
   <div class="best" id="topSeason" style="font-size:13px"></div>
+  <div class="best" id="topHint" style="font-size:12px;opacity:.55"></div>
   <button class="btn ghost" id="btnTopClose"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
@@ -246,6 +252,14 @@
   <div id="tourList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:6px;max-height:34vh;overflow-y:auto"></div>
   <button class="btn green" id="btnTourPlay">Вступить</button>
   <button class="btn ghost" id="btnTourMenu"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
+</div>
+
+<div id="scrProfile" class="screen hidden">
+  <div class="logo" style="font-size:min(8vw,28px)" id="profName">Профиль</div>
+  <canvas id="profCv" width="128" height="128"></canvas>
+  <div class="best" id="profStyle"></div>
+  <div class="sub" id="profStats"></div>
+  <button class="btn ghost" id="btnProfClose">Назад</button>
 </div>
 
 <div id="scrDuel" class="screen hidden">
@@ -472,6 +486,11 @@ var I18N = {
     refInfo:'Приглашено друзей: {a} · наград получено: {b}',
     questsHdr:'Задания дня', questDone:'Задание выполнено: {t} — забери награду!', claimBtn:'Забрать +{r}', claimed:'Получено {r}',
     dailyStreak:'Серия вызовов: {n} дн. подряд', dailyStreakNext:'Значки за серию: 3, 7 и 30 дней!',
+    profSeason:'За сезон: <b>{n}</b> {g} · побед: {w}', profDuels:'Всего побед в дуэлях: <b>{n}</b>',
+    profStreakL:'Серия вызовов дня: <b>{n}</b> дн.', profBadges:'Значки: <b>{a}</b> из {b}',
+    profSince:'В игре с {d}', profStyle:'Стиль: {s}', profBack:'Назад',
+    profFail:'Не удалось загрузить профиль', profChampion:'Чемпион прошлого сезона',
+    profTapHint:'Нажми на игрока в таблице — увидишь его профиль и стиль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -533,6 +552,11 @@ var I18N = {
     refInfo:'Friends invited: {a} · rewards earned: {b}',
     questsHdr:'Daily quests', questDone:'Quest complete: {t} — claim your reward!', claimBtn:'Claim +{r}', claimed:'Claimed {r}',
     dailyStreak:'Challenge streak: {n} days in a row', dailyStreakNext:'Streak badges at 3, 7 and 30 days!',
+    profSeason:'This season: <b>{n}</b> {g} · wins: {w}', profDuels:'Total duel wins: <b>{n}</b>',
+    profStreakL:'Daily challenge streak: <b>{n}</b> days', profBadges:'Badges: <b>{a}</b> of {b}',
+    profSince:'Playing since {d}', profStyle:'Style: {s}', profBack:'Back',
+    profFail:'Could not load the profile', profChampion:'Last season champion',
+    profTapHint:'Tap a player in the table to see their profile and style',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -1233,6 +1257,60 @@ function drawSkinPreview(cnv, skin, v){
   previewSkin = null;
   ctx = octx; cell = ocell;
 }
+// ---------- Витрина скинов: флаиры и публичный профиль ----------
+var flairCache = {};
+function makeFlair(skin){
+  if (!skin) return null;
+  if (!flairCache[skin]){
+    var c = document.createElement('canvas'); c.width = c.height = 44;
+    try { drawSkinPreview(c, skin, 128); flairCache[skin] = c.toDataURL(); } catch(e){ return null; }
+  }
+  var img = document.createElement('img');
+  img.className = 'flairimg'; img.src = flairCache[skin]; img.alt = '';
+  return img;
+}
+function skinLabel(skin, ftheme){
+  var s = t(skin === 'skin_neon' ? 'sk_neon' : skin === 'skin_pixel' ? 'sk_pixel' :
+            skin === 'skin_pets' ? 'sk_pets' : skin === 'skin_gold' ? 'sk_gold' : 'sk_default');
+  if (ftheme === 'theme_space') s += ' · ' + t('th_space');
+  return s;
+}
+var profBackId = 'scrTop';
+function openProfile(uid, backId){
+  if (!uid || !authPayload()) return;
+  profBackId = backId || 'scrTop';
+  hide(profBackId); show('scrProfile'); if (state !== 'over') state = 'menu';
+  $('profName').textContent = '…';
+  $('profStyle').innerHTML = '';
+  $('profStats').innerHTML = '<span class="spinner"></span> ' + t('loading');
+  var cv = $('profCv'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
+  $('btnProfClose').innerHTML = t('profBack');
+  wapi('/profile', { uid: uid }, function(d){
+    if (!d || !d.ok){ $('profStats').textContent = t('profFail'); return; }
+    $('profName').innerHTML = (d.crowned ? '<svg class="ic"><use href="#i-crown"/></svg> ' : '') +
+      escHtml(d.name || 'Игрок');
+    drawSkinPreview(cv, d.skin || '', 128);
+    $('profStyle').textContent = t('profStyle', { s: skinLabel(d.skin, d.ftheme) });
+    var lines = [];
+    if (d.crowned) lines.push('<b style="color:#ffe14d">' + t('profChampion') + '</b>');
+    lines.push(t('profSeason', { n: d.seasonGems, g: IC_GEM, w: d.seasonWins }));
+    lines.push(t('profDuels', { n: d.duelWins }));
+    if (d.dailyStreak > 0) lines.push('<svg class="ic"><use href="#i-fire"/></svg> ' + t('profStreakL', { n: d.dailyStreak }));
+    lines.push('<svg class="ic"><use href="#i-medal"/></svg> ' + t('profBadges', { a: (d.achEarned || []).length, b: d.achTotal }));
+    if (d.since){
+      var dt = new Date(d.since);
+      lines.push('<small style="opacity:.7">' + t('profSince', { d: dt.toLocaleDateString(LANG === 'ru' ? 'ru-RU' : 'en-US', { month: 'long', year: 'numeric' }) }) + '</small>');
+    }
+    $('profStats').innerHTML = lines.join('<br>');
+  });
+}
+function escHtml(s){ var d = document.createElement('div'); d.textContent = s; return d.innerHTML; }
+function rowProfile(div, uid, backId){
+  if (!uid) return;
+  div.classList.add('click');
+  div.addEventListener('click', function(){ sfxClick(); openProfile(uid, backId); });
+}
+$('btnProfClose').addEventListener('click', function(){ sfxClick(); hide('scrProfile'); show(profBackId); });
 var aimColGlow = 2;
 function draw(){
   ctx.clearRect(0,0,W,H);
@@ -1460,7 +1538,7 @@ function updateHud(){
 function openMenu(){
   state='menu'; musicStop();
   duelActive = false;
-  hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour'); hide('scrShop');
+  hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour'); hide('scrShop'); hide('scrProfile');
   checkDailyBadge();
   $('menuBest').textContent = t('bestN', { n: best });
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
@@ -1699,7 +1777,7 @@ $('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 
 // ---------- Вызов дня ----------
 var dailyState = null;
-function showDailyScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hide('scrOver'); hide('scrPause'); show('scrDaily'); if (state !== 'over') state = 'menu'; }
+function showDailyScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hide('scrOver'); hide('scrPause'); hide('scrProfile'); show('scrDaily'); if (state !== 'over') state = 'menu'; }
 function updateDailyBadge(){
   var b = $('dailyBadge'); if (!b) return;
   var showB = dailyState && !dailyState.played && dailyState.tries < dailyState.triesMax;
@@ -1752,8 +1830,10 @@ function renderDaily(){
       rk.className = 'rk' + (i === 0 ? ' gold' : i === 1 ? ' silv' : i === 2 ? ' brnz' : '');
       rk.textContent = i + 1;
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
+      var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm'; gm.textContent = r.score;
-      div.appendChild(rk); div.appendChild(nm); div.appendChild(gm);
+      div.appendChild(rk); div.appendChild(nm); if (fl) div.appendChild(fl); div.appendChild(gm);
+      rowProfile(div, r.user_id, 'scrDaily');
       list.appendChild(div);
     }
   }
@@ -1809,7 +1889,7 @@ if (tg) $('btnDaily').classList.remove('hidden');
 
 // ---------- Турнир ----------
 var tourState = null;
-function showTourScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hide('scrDaily'); hide('scrOver'); hide('scrPause'); show('scrTour'); if (state !== 'over') state = 'menu'; }
+function showTourScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hide('scrDaily'); hide('scrOver'); hide('scrPause'); hide('scrProfile'); show('scrTour'); if (state !== 'over') state = 'menu'; }
 function renderTour(){
   var v = tourState;
   var info = $('tourInfo'), big = $('tourBig'), list = $('tourList'), play = $('btnTourPlay');
@@ -1853,10 +1933,12 @@ function renderTour(){
       rk.className = 'rk' + (v.status === 'done' && i === 0 && r.played ? ' gold' : '');
       rk.textContent = r.played ? (i + 1) : '…';
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
+      var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm';
       if (v.status === 'done' && r.prize) gm.innerHTML = r.score + ' (+' + r.prize + ' ' + IC_GEM + ')';
       else gm.textContent = r.played ? r.score : t('tourPlaying');
-      div.appendChild(rk); div.appendChild(nm); div.appendChild(gm);
+      div.appendChild(rk); div.appendChild(nm); if (fl) div.appendChild(fl); div.appendChild(gm);
+      rowProfile(div, r.user_id, 'scrTour');
       list.appendChild(div);
     }
   } else {
@@ -2208,11 +2290,13 @@ function renderTop(){
       if (topData.prevTop3 && topData.prevTop3.indexOf(r.user_id) >= 0){
         nm.insertAdjacentHTML('afterbegin', '<svg class="ic"><use href="#i-crown"/></svg> ');
       }
+      var fl = makeFlair(r.skin);
       var wn = document.createElement('span'); wn.className = 'wn';
       wn.textContent = t('wins', { n: r.wins });
       var gm = document.createElement('span'); gm.className = 'gm';
       gm.innerHTML = r.gems + ' ' + IC_GEM;
-      div.appendChild(rk); div.appendChild(nm); div.appendChild(wn); div.appendChild(gm);
+      div.appendChild(rk); div.appendChild(nm); if (fl) div.appendChild(fl); div.appendChild(wn); div.appendChild(gm);
+      rowProfile(div, r.user_id, 'scrTop');
       list.appendChild(div);
     }
   }
@@ -2323,6 +2407,8 @@ function applyLang(){
   $('topTabR').textContent = t('circle'); $('topTabG').textContent = t('world');
   $('topTabH').textContent = t('duelsTab'); $('topTabA').textContent = t('badges');
   setBtn('btnTopClose', 'home', 'toMenu', ' ');
+  var thn = $('topHint'); if (thn) thn.textContent = t('profTapHint');
+  var pbc = $('btnProfClose'); if (pbc) pbc.textContent = t('profBack');
   var dt = document.querySelector('#scrDaily .logo'); if (dt) dt.innerHTML = '<svg class="ic"><use href="#i-cal"/></svg> ' + t('dailyTitle');
   setBtn('btnDailyMenu', 'home', 'toMenu', ' ');
   var trt = document.querySelector('#scrTour .logo'); if (trt) trt.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg> ' + t('tourTitle');
