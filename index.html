@@ -2248,6 +2248,7 @@ function renderHistory(){
     gm.className = 'gm' + (h.delta < 0 ? ' neg' : h.delta === 0 ? ' zero' : '');
     gm.innerHTML = (h.delta > 0 ? '+' : '') + h.delta + ' ' + IC_GEM;
     div.appendChild(rk); div.appendChild(nm); div.appendChild(wn); div.appendChild(gm);
+    rowProfile(div, h.oppId, 'scrTop');
     list.appendChild(div);
   }
 }
@@ -2280,6 +2281,7 @@ function renderTop(){
   $('topTabG').classList.toggle('on', topTab === 'g');
   $('topTabH').classList.toggle('on', topTab === 'h');
   $('topTabA').classList.toggle('on', topTab === 'a');
+  var th = $('topHint'); if (th) th.classList.toggle('hidden', topTab === 'a');
   if (topTab === 'h'){ renderHistory(); return; }
   if (topTab === 'a'){ renderAch(); return; }
   var list = $('topList');
