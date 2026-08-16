@@ -110,6 +110,10 @@
   body.light .toprow .nm { color:#2e2154; }
   body.light .toprow .gm { color:#c68400; }
   body.light .toprow.me { border-color:#e0a800; background:rgba(255,193,7,.12); }
+  body.light .bigscore { color:#c68400; text-shadow:0 3px 0 rgba(46,33,84,.12); }
+  body.light .toprow .rk { color:#7a68b3; }
+  body.light .toprow .wn { color:#6a5aa8; }
+  body.light .toprow .gm.zero { color:#7a68b3; }
   body.light #userHello { color:#8b7cc2; }
   body.light .toast { background:linear-gradient(180deg,#fff,#f0e9ff); color:#2e2154; border-color:rgba(224,168,0,.6); }
   body.light .newrec { color:#c68400; }
@@ -334,13 +338,16 @@ function authPayload(){
   return null;
 }
 function wapi(path, extra, cb){
-  var a = authPayload(); if (!a) return;
+  var a = authPayload();
+  if (!a){ if (cb) setTimeout(function(){ cb(null); }, 0); return; }
   var body = {};
   for (var k in a) body[k]=a[k];
   if (extra) for (var k2 in extra) body[k2]=extra[k2];
   try {
     fetch(WORKER_BASE+path, { method:'POST', headers:{'Content-Type':'text/plain'}, body: JSON.stringify(body) })
-      .then(function(r){ return r.json(); }).then(function(d){ if (cb) cb(d); }).catch(function(){ if (cb) cb(null); });
+      .then(function(r){ return r.json(); })
+      .then(function(d){ if (cb) try { cb(d); } catch(e){} },
+            function(){ if (cb) try { cb(null); } catch(e){} });
   } catch(e){ if (cb) cb(null); }
 }
 var IC_GEM = '<svg class="ic"><use href="#i-gem"/></svg>';
@@ -381,11 +388,12 @@ function refreshMe(){
     clearTimeout(crysTimer);
     crysTimer = setTimeout(function(){ if (crysLoading){ crysLoading = false; updateCrysUI(); } }, 8000);
   }
-  var mePayload = null;
-  if (pendingRef){ mePayload = { ref: pendingRef }; pendingRef = null; }
+  var mePayload = null, sentRef = pendingRef;
+  if (sentRef) mePayload = { ref: sentRef };
   wapi('/me', mePayload, function(d){
     crysLoading = false; clearTimeout(crysTimer);
     if (d && d.ok){
+      if (sentRef && pendingRef === sentRef) pendingRef = null; // код доставлен — только теперь забываем
       myBalance=d.balance; bonusState=d.bonus;
       if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); }
       if (d.skin !== undefined){ applyEquipped(d.skin, d.ftheme); undoCredits = d.undoCredits || 0; }
@@ -496,6 +504,7 @@ var I18N = {
     profTapHint:'Нажми на игрока в таблице — увидишь его профиль и стиль',
     storyBtn:'В сторис', storyText:'Я набрал(а) {s} очков в БлокПоп! Сможешь больше? Играй:',
     storyDuelText:'Я выиграл(а) дуэль в БлокПоп со счётом {s}! Вызовешь меня?',
+    player:'Игрок', undoDoneFree:'Ход отменён (отмены: {n})',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -564,6 +573,7 @@ var I18N = {
     profTapHint:'Tap a player in the table to see their profile and style',
     storyBtn:'To story', storyText:'I scored {s} points in BlockPop! Can you beat me? Play:',
     storyDuelText:'I won a BlockPop duel with {s} points! Dare to challenge me?',
+    player:'Player', undoDoneFree:'Move undone (undos left: {n})',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -884,6 +894,7 @@ function takeSnapshot(){
   undoSnap = {
     g: g, score: score, curV: curBlock.v, nextQ: nextQ.slice(),
     drops: dropsCount, skipCd: skipCooldown,
+    mt: runMaxTile, mc: runMaxCombo,
     ms: { 512: milestones[512]||0, 1024: milestones[1024]||0, 2048: milestones[2048]||0, 4096: milestones[4096]||0 },
   };
 }
@@ -896,6 +907,7 @@ function applySnapshot(){
     grid[c][r] = b; blocks.push(b);
   }
   score = s.score; combo = 0; dropsCount = s.drops; skipCooldown = s.skipCd;
+  runMaxTile = s.mt || 0; runMaxCombo = s.mc || 0;
   milestones = {}; for (var k in s.ms) if (s.ms[k]) milestones[k] = 1;
   nextQ = s.nextQ.slice();
   curBlock = { v: s.curV, col: 2, x: cellX(2)+cell/2 };
@@ -1071,7 +1083,7 @@ function gameOver(){
   var isRec = score > best;
   if (isRec){ best = score; storeSet('bp_best', best); haptic('rec'); }
   $('overScore').textContent = score;
-  $('overBest').textContent = 'Рекорд: ' + best;
+  $('overBest').textContent = t('bestN', { n: best });
   if (isRec) show('newRec'); else hide('newRec');
   if (isRec) confetti(40);
   maybeClaimAch();
@@ -1283,10 +1295,11 @@ function skinLabel(skin, ftheme){
   if (ftheme === 'theme_space') s += ' · ' + t('th_space');
   return s;
 }
-var profBackId = 'scrTop';
+var profBackId = 'scrTop', profReq = 0;
 function openProfile(uid, backId){
   if (!uid || !authPayload()) return;
   profBackId = backId || 'scrTop';
+  var myReq = ++profReq;
   hide(profBackId); show('scrProfile'); if (state !== 'over') state = 'menu';
   $('profName').textContent = '…';
   $('profStyle').innerHTML = '';
@@ -1294,9 +1307,10 @@ function openProfile(uid, backId){
   var cv = $('profCv'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
   $('btnProfClose').innerHTML = t('profBack');
   wapi('/profile', { uid: uid }, function(d){
+    if (myReq !== profReq || $('scrProfile').classList.contains('hidden')) return; // устаревший ответ
     if (!d || !d.ok){ $('profStats').textContent = t('profFail'); return; }
     $('profName').innerHTML = (d.crowned ? '<svg class="ic"><use href="#i-crown"/></svg> ' : '') +
-      escHtml(d.name || 'Игрок');
+      escHtml(d.name || t('player'));
     drawSkinPreview(cv, d.skin || '', 128);
     $('profStyle').textContent = t('profStyle', { s: skinLabel(d.skin, d.ftheme) });
     var lines = [];
@@ -1556,6 +1570,8 @@ function openMenu(){
 function doPause(){
   if (state!=='aim' && state!=='drop' && state!=='resolve') return;
   pausedFrom = state; state='pause'; musicStop();
+  // в дуэли/вызове/турнире перезапуск колоды запрещён — расклад общий, попытки платные
+  $('btnRestart1').classList.toggle('hidden', duelActive);
   show('scrPause');
 }
 function doResume(){
@@ -1605,7 +1621,7 @@ window.addEventListener('keydown', function(e){
 $('btnPlay').addEventListener('click', function(){ audio(); sfxClick(); hide('scrMenu'); startGame(); });
 $('btnPause').addEventListener('click', function(){ sfxClick(); if(state==='pause') doResume(); else doPause(); });
 $('btnResume').addEventListener('click', function(){ sfxClick(); doResume(); });
-$('btnRestart1').addEventListener('click', function(){ sfxClick(); hide('scrPause'); startGame(); });
+$('btnRestart1').addEventListener('click', function(){ if (duelActive) return; sfxClick(); hide('scrPause'); startGame(); });
 $('btnAgain').addEventListener('click', function(){ sfxClick(); hide('scrOver'); startGame(); });
 $('btnMenu1').addEventListener('click', function(){ sfxClick(); openMenu(); });
 $('btnMenu2').addEventListener('click', function(){ sfxClick(); openMenu(); });
@@ -1615,7 +1631,7 @@ $('btnSkip').addEventListener('click', function(e){ e.stopPropagation(); audio()
 $('btnUndo').addEventListener('click', function(e){
   e.stopPropagation(); audio();
   if (undoBusy || state !== 'aim' || !undoSnap || duelActive) return;
-  if (myBalance !== null && myBalance < 5){
+  if (undoCredits <= 0 && myBalance !== null && myBalance < 5){
     floaters.push({ x: W/2, y: boardY + 40, txt: t('need5'), t: 0, col: '#ff8a80', big: 1 });
     sfxClick(); return;
   }
@@ -1629,8 +1645,9 @@ $('btnUndo').addEventListener('click', function(e){
       return;
     }
     myBalance = d.balance; updateCrysUI(true);
+    if (d.undoCredits !== undefined) undoCredits = d.undoCredits;
     applySnapshot();
-    floaters.push({ x: W/2, y: boardY + 40, txt: t('undoDone'), t: 0, col: '#c39bff', big: 1 });
+    floaters.push({ x: W/2, y: boardY + 40, txt: d.usedCredit ? t('undoDoneFree', { n: undoCredits }) : t('undoDone'), t: 0, col: '#c39bff', big: 1 });
     sfxDrop(); haptic('drop');
   });
 });
@@ -1840,7 +1857,7 @@ function renderDaily(){
       var rk = document.createElement('span');
       rk.className = 'rk' + (i === 0 ? ' gold' : i === 1 ? ' silv' : i === 2 ? ' brnz' : '');
       rk.textContent = i + 1;
-      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || t('player');
       var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm'; gm.textContent = r.score;
       div.appendChild(rk); div.appendChild(nm); if (fl) div.appendChild(fl); div.appendChild(gm);
@@ -1943,7 +1960,7 @@ function renderTour(){
       var rk = document.createElement('span');
       rk.className = 'rk' + (v.status === 'done' && i === 0 && r.played ? ' gold' : '');
       rk.textContent = r.played ? (i + 1) : '…';
-      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || 'Игрок';
+      var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || t('player');
       var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm';
       if (v.status === 'done' && r.prize) gm.innerHTML = r.score + ' (+' + r.prize + ' ' + IC_GEM + ')';
@@ -2121,23 +2138,25 @@ function shopBuy(id, btn){
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   wapi('/shop/buy', { item: id }, function(d){
     if (d && d.ok){
-      shopState.balance = d.balance; shopState.undoCredits = d.undoCredits;
-      if (shopState.catalog[id].kind !== 'pack') shopState.owned[id] = 1;
       myBalance = d.balance; undoCredits = d.undoCredits; updateCrysUI(true);
+      if (shopState){
+        shopState.balance = d.balance; shopState.undoCredits = d.undoCredits;
+        if (shopState.catalog[id] && shopState.catalog[id].kind !== 'pack') shopState.owned[id] = 1;
+      }
       sfxCombo(3); haptic('rec'); showToast('<svg class="ic"><use href="#i-cart"/></svg> ' + t('bought'));
     }
-    renderShop();
+    if (shopState) renderShop();
   });
 }
 function shopEquip(kind, id, btn){
   btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
   wapi('/shop/equip', { kind: kind === 'theme' ? 'theme' : 'skin', item: id }, function(d){
-    if (d && d.ok){
+    if (d && d.ok && shopState){
       if (kind === 'theme') shopState.equipped.ftheme = id; else shopState.equipped.skin = id;
       applyEquipped(shopState.equipped.skin, shopState.equipped.ftheme);
       sfxClick();
     }
-    renderShop();
+    if (shopState) renderShop();
   });
 }
 $('btnShop').addEventListener('click', function(){ audio(); sfxClick(); openShop(); });
@@ -2196,7 +2215,9 @@ function checkQuests(showToasts){
     var seen = {};
     try { seen = JSON.parse(lsGet('bp_qseen_' + d.day) || '{}'); } catch(e){}
     var newDone = d.quests.filter(function(q){ return q.done && !q.claimed && !seen[q.id]; });
-    d.quests.forEach(function(q){ if (q.done) seen[q.id] = 1; });
+    // помечаем «увиденным» только когда тост реально показан (или награда уже забрана),
+    // иначе тихая проверка навсегда проглотит уведомление
+    d.quests.forEach(function(q){ if (q.done && (showToasts || q.claimed)) seen[q.id] = 1; });
     lsSet('bp_qseen_' + d.day, JSON.stringify(seen));
     if (showToasts && newDone.length){
       newDone.forEach(function(q, i){
@@ -2299,7 +2320,7 @@ function renderTop(){
       rk.className = 'rk' + (i===0?' gold':i===1?' silv':i===2?' brnz':'');
       rk.textContent = i + 1;
       var nm = document.createElement('span'); nm.className = 'nm';
-      nm.textContent = r.name || 'Игрок';
+      nm.textContent = r.name || t('player');
       if (topData.prevTop3 && topData.prevTop3.indexOf(r.user_id) >= 0){
         nm.insertAdjacentHTML('afterbegin', '<svg class="ic"><use href="#i-crown"/></svg> ');
       }
