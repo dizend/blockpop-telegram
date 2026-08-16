@@ -505,6 +505,7 @@ var I18N = {
     storyBtn:'В сторис', storyText:'Я набрал(а) {s} очков в БлокПоп! Сможешь больше? Играй:',
     storyDuelText:'Я выиграл(а) дуэль в БлокПоп со счётом {s}! Вызовешь меня?',
     player:'Игрок', undoDoneFree:'Ход отменён (отмены: {n})',
+    modeBlitz:'Блиц', modeMarathon:'Марафон',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -574,6 +575,7 @@ var I18N = {
     storyBtn:'To story', storyText:'I scored {s} points in BlockPop! Can you beat me? Play:',
     storyDuelText:'I won a BlockPop duel with {s} points! Dare to challenge me?',
     player:'Player', undoDoneFree:'Move undone (undos left: {n})',
+    modeBlitz:'Blitz', modeMarathon:'Marathon',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -834,6 +836,7 @@ function mulberry32(a){
 // ---------- Дуэль: состояние ----------
 var DUEL_POOL = [2,2,2,4,4,8,8,16];
 var DUEL_DROPS_C = 40;
+var duelDropsLimit = 40; // длительность текущего раунда: дуэль 20/40/80, вызов дня и турнир всегда 40
 var duelActive = false, duelKind = 'duel', duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
 var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = null, myRefs = null;
 (function(){
@@ -842,8 +845,8 @@ var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = nul
     if (sp === 'daily'){ startWithDaily = true; return; }
     var mr = /^ref_(\d{1,15})$/.exec(sp);
     if (mr){ pendingRef = mr[1]; return; }
-    var m = /^d(\d+)x([a-z0-9]{8,32})$/.exec(sp);
-    if (m){ duelParam = { stake:+m[1], token:m[2], raw:sp }; return; }
+    var m = /^d(\d+)([xbm])([a-z0-9]{8,32})$/.exec(sp);
+    if (m){ duelParam = { stake:+m[1], drops:({x:40,b:20,m:80})[m[2]], token:m[3], raw:sp }; return; }
     var mt = /^t(\d+)x([a-z0-9]{8,32})$/.exec(sp);
     if (mt) tourParam = { stake:+mt[1], token:mt[2], raw:sp };
   } catch(e){}
@@ -917,7 +920,7 @@ function applySnapshot(){
 }
 function tryDrop(col){
   if (state!=='aim' || !curBlock) return;
-  if (duelActive && dropsCount >= DUEL_DROPS_C) return;
+  if (duelActive && dropsCount >= duelDropsLimit) return;
   if (colHeight(col) >= ROWS) { shakeT = 8; sfxClick(); return; }
   if (tutActive){ tutActive = false; lsSet('bp_tut', '1'); }
   takeSnapshot();
@@ -930,7 +933,7 @@ function tryDrop(col){
   state = 'drop';
   if (skipCooldown>0){ skipCooldown--; updateSkipBtn(); }
   dropsCount++;
-  if (duelActive && DUEL_DROPS_C - dropsCount <= 5 && DUEL_DROPS_C - dropsCount > 0 && sndOn){
+  if (duelActive && duelDropsLimit - dropsCount <= 5 && duelDropsLimit - dropsCount > 0 && sndOn){
     tone(1000, 0.06, 'square', 0.12); tone(700, 0.06, 'square', 0.1, 0.09);
   }
   sfxDrop(); haptic('drop');
@@ -1411,7 +1414,7 @@ function draw(){
     ctx.strokeStyle = 'rgba(0,0,0,.4)'; ctx.lineWidth = 3; ctx.lineJoin = 'round';
     ctx.font = 'bold 15px "Arial Rounded MT Bold", Arial, sans-serif';
     ctx.textAlign = 'left';
-    var dtxt = (duelKind === 'daily' ? t('dailyHud') + ' · ' : duelKind === 'tour' ? t('tourHud') + ' · ' : '') + t('drops', { n: DUEL_DROPS_C - dropsCount });
+    var dtxt = (duelKind === 'daily' ? t('dailyHud') + ' · ' : duelKind === 'tour' ? t('tourHud') + ' · ' : '') + t('drops', { n: duelDropsLimit - dropsCount });
     if (duelViewCache && duelViewCache.oppScore != null) dtxt += '   ' + t('target', { n: duelViewCache.oppScore + 1 });
     if (duelViewCache && duelViewCache.tries > 1) dtxt += '   ' + t('attempt', { a: duelViewCache.tries, b: duelViewCache.triesMax || 3 });
     ctx.strokeText(dtxt, boardX + cell*0.9, topZone - cell - 10);
@@ -1541,7 +1544,7 @@ function step(){
         if (g){ doMerge(g); resolveWait = 7; }
         else {
           combo = 0;
-          if (duelActive && (dropsCount >= DUEL_DROPS_C || boardFull())){ duelFinish(); }
+          if (duelActive && (dropsCount >= duelDropsLimit || boardFull())){ duelFinish(); }
           else if (boardFull()){ gameOver(); }
           else { spawnCur(); state='aim'; }
         }
@@ -1693,10 +1696,12 @@ function duelUI(opts){
 }
 function duelIntro(){
   if (!duelParam) return;
+  var dd = duelParam.drops || 40;
+  var modeTag = dd === 20 ? '⚡ ' + t('modeBlitz') + ' · ' : dd === 80 ? '🏁 ' + t('modeMarathon') + ' · ' : '';
   duelUI({
-    title: t('duelTitle'),
-    text: t('duelIntro', { s: duelParam.stake, g: IC_GEM, d: DUEL_DROPS_C, p: Math.floor(duelParam.stake*2*0.8) }) +
-      (lsGet('bp_duel_tut') ? '' : t('duelHow', { d: DUEL_DROPS_C })),
+    title: modeTag ? modeTag.replace(' · ', '') + '-' + t('duelTitle').toLowerCase() : t('duelTitle'),
+    text: t('duelIntro', { s: duelParam.stake, g: IC_GEM, d: dd, p: Math.floor(duelParam.stake*2*0.8) }) +
+      (lsGet('bp_duel_tut') ? '' : t('duelHow', { d: dd })),
     start: true,
   });
   $('btnDuelStart').innerHTML = '<svg class="ic"><use href="#i-duel"/></svg>' + t('duelEnter', { s: duelParam.stake, g: '<svg class="ic"><use href="#i-gem"/></svg>' });
@@ -1730,6 +1735,7 @@ function duelJoin(){
 }
 function startDuelRound(){
   duelActive = true; duelKind = 'duel';
+  duelDropsLimit = (duelParam && duelParam.drops) || 40;
   lsSet('bp_duel_tut', '1');
   hide('scrDuel');
   startGame();
@@ -1881,6 +1887,7 @@ function checkDailyBadge(){
 }
 function startDailyRound(seed){
   duelActive = true; duelKind = 'daily';
+  duelDropsLimit = 40;
   duelSeedVal = seed; duelIdx = 0; duelViewCache = null;
   hide('scrDaily');
   startGame();
@@ -2001,6 +2008,7 @@ $('btnTourPlay').addEventListener('click', function(){
   wapi('/tour/join', { tour: tourParam.raw }, function(d){
     if (d && d.ok){
       duelActive = true; duelKind = 'tour';
+      duelDropsLimit = 40;
       duelSeedVal = d.seed; duelIdx = 0; duelViewCache = null;
       hide('scrTour'); startGame();
       return;
