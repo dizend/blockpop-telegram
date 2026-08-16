@@ -1697,7 +1697,7 @@ function duelUI(opts){
 function duelIntro(){
   if (!duelParam) return;
   var dd = duelParam.drops || 40;
-  var modeTag = dd === 20 ? '⚡ ' + t('modeBlitz') + ' · ' : dd === 80 ? '🏁 ' + t('modeMarathon') + ' · ' : '';
+  var modeTag = dd === 20 ? '⚡ ' + t('modeBlitz') + ' · ' : dd === 80 ? '⛰️ ' + t('modeMarathon') + ' · ' : '';
   duelUI({
     title: modeTag ? modeTag.replace(' · ', '') + '-' + t('duelTitle').toLowerCase() : t('duelTitle'),
     text: t('duelIntro', { s: duelParam.stake, g: IC_GEM, d: dd, p: Math.floor(duelParam.stake*2*0.8) }) +
