@@ -856,6 +856,7 @@ var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = nul
 function startGame(){
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
+  scoreCounted = false; lsSet('bp_pending', '');
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
   var oe=$('overEarn'); if (oe){ oe.classList.add('hidden'); oe.textContent=''; }
   gameStartTs = Date.now();
@@ -1080,9 +1081,59 @@ function allSettled(){
 
 // ---------- Game over ----------
 var pendingRecord = false;
+// ---------- Учёт партии: рекорд, кристаллы, задания ----------
+var scoreCounted = false; // счёт текущей партии уже засчитан (защита от двойного начисления)
+function bumpBest(sc){
+  if (!(sc > best)) return false;
+  best = sc; storeSet('bp_best', best);
+  updateHud();
+  var mb = $('menuBest'); if (mb) mb.textContent = t('bestN', { n: best });
+  return true;
+}
+function gameIsLive(){ return state==='aim' || state==='drop' || state==='resolve' || state==='pause'; }
+// выход в меню посреди обычной партии = партия засчитана (рекорд + кристаллы + задания)
+function countAbandoned(){
+  if (duelActive || scoreCounted || score <= 0 || !gameIsLive()) return;
+  scoreCounted = true;
+  lsSet('bp_pending', '');
+  if (bumpBest(score)) haptic('rec');
+  maybeClaimAch();
+  submitScore(score);
+  wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
+    if (d && d.ok){
+      myBalance = d.balance; updateCrysUI(true);
+      if (d.gained > 0) showToast(IC_GEM + ' ' + t('earned', { n: d.gained, g: '', a: d.earnedToday, b: d.earnCap }));
+    }
+  });
+  setTimeout(function(){ checkQuests(true); }, 800);
+}
+// сворачивание/закрытие приложения: сохраняем счёт, чтобы засчитать его при следующем запуске
+function savePending(){
+  if (duelActive || scoreCounted || score <= 0 || !gameIsLive()) return;
+  try { lsSet('bp_pending', JSON.stringify({ s: score, d: Date.now() - gameStartTs, m: dropsCount, mc: runMaxCombo, mt: runMaxTile })); } catch(e){}
+}
+function flushPending(){
+  var raw = lsGet('bp_pending'); if (!raw) return;
+  lsSet('bp_pending', '');
+  var p = null; try { p = JSON.parse(raw); } catch(e){}
+  if (!p || !(p.s > 0)) return;
+  bumpBest(p.s);
+  wapi('/earn', { score: p.s, dur: p.d, moves: p.m, maxCombo: p.mc, maxTile: p.mt }, function(d){
+    if (d && d.ok){
+      myBalance = d.balance; updateCrysUI(true);
+      if (d.gained > 0) showToast(IC_GEM + ' ' + t('earned', { n: d.gained, g: '', a: d.earnedToday, b: d.earnCap }));
+    }
+  });
+}
+document.addEventListener('visibilitychange', function(){
+  if (document.hidden) savePending(); else lsSet('bp_pending', '');
+});
+window.addEventListener('pagehide', savePending); // iOS/WebView: закрытие мини-аппа
+
 function gameOver(){
   state='over'; musicStop();
   sfxOver(); haptic('over');
+  scoreCounted = true; lsSet('bp_pending', '');
   var isRec = score > best;
   if (isRec){ best = score; storeSet('bp_best', best); haptic('rec'); }
   $('overScore').textContent = score;
@@ -1626,7 +1677,7 @@ $('btnPause').addEventListener('click', function(){ sfxClick(); if(state==='paus
 $('btnResume').addEventListener('click', function(){ sfxClick(); doResume(); });
 $('btnRestart1').addEventListener('click', function(){ if (duelActive) return; sfxClick(); hide('scrPause'); startGame(); });
 $('btnAgain').addEventListener('click', function(){ sfxClick(); hide('scrOver'); startGame(); });
-$('btnMenu1').addEventListener('click', function(){ sfxClick(); openMenu(); });
+$('btnMenu1').addEventListener('click', function(){ sfxClick(); countAbandoned(); openMenu(); });
 $('btnMenu2').addEventListener('click', function(){ sfxClick(); openMenu(); });
 function toggleSound(){ sndOn=!sndOn; storeSet('bp_snd', sndOn?'1':'0'); syncToggles(); sfxClick(); }
 function toggleMusic(){ musOn=!musOn; storeSet('bp_mus', musOn?'1':'0'); syncToggles(); syncMusic(); sfxClick(); }
@@ -1764,6 +1815,8 @@ function duelFinish(){
   state='over'; musicStop();
   duelActive = false;
   sfxLand();
+  scoreCounted = true; lsSet('bp_pending', '');
+  if (bumpBest(score)) haptic('rec'); // счёт в дуэли/вызове/турнире тоже обновляет личный рекорд
   maybeClaimAch();
   setTimeout(function(){ checkQuests(true); }, 1500);
   if (duelKind === 'daily'){ dailyFinish(); return; }
@@ -2519,7 +2572,10 @@ $('btnShare').addEventListener('click', function(){
 });
 
 // ---------- Инициализация ----------
-storeGet('bp_best', function(v){ best = parseInt(v,10)||0; updateHud(); $('menuBest').textContent=t('bestN',{n:best}); });
+storeGet('bp_best', function(v){
+  best = parseInt(v,10)||0; updateHud(); $('menuBest').textContent=t('bestN',{n:best});
+  flushPending(); // партия, прерванная закрытием приложения, засчитывается при возврате
+});
 storeGet('bp_snd', function(v){ if(v==='0') sndOn=false; syncToggles(); });
 storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 storeGet('bp_vib', function(v){ if(v==='0'){ vibOn=false; $('tglVib').classList.add('off'); } });
