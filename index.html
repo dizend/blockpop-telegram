@@ -657,6 +657,12 @@ function applyTheme(){
 if (tg && tg.onEvent){ try { tg.onEvent('themeChanged', function(){ applyTheme(); }); } catch(e){} }
 // палитра канваса под тему
 function thc(){
+  // «Закат» — светлый фон, поэтому белая разметка на нём теряется: берём тёмную
+  if (activeTheme === 'theme_sunset') return {
+    frameFill:'rgba(40,16,40,.10)', frameStroke:'rgba(40,16,40,.20)',
+    slotFill:'rgba(40,16,40,.10)', slotStroke:'rgba(40,16,40,.16)',
+    aimCol:'rgba(40,16,40,.12)', dash:'rgba(60,20,50,.35)', label:'rgba(60,20,50,.65)',
+  };
   return themeLight ? {
     frameFill:'rgba(46,33,84,.06)', frameStroke:'rgba(46,33,84,.14)',
     slotFill:'rgba(46,33,84,.05)', slotStroke:'rgba(46,33,84,.09)',
