@@ -110,6 +110,7 @@
   body.light .toprow .nm { color:#2e2154; }
   body.light .toprow .gm { color:#c68400; }
   body.light .toprow.me { border-color:#e0a800; background:rgba(255,193,7,.12); }
+  body.light .spinner { border-color:rgba(46,33,84,.20); border-top-color:#5d4d96; }
   body.light .bigscore { color:#c68400; text-shadow:0 3px 0 rgba(46,33,84,.12); }
   body.light .toprow .rk { color:#7a68b3; }
   body.light .toprow .wn { color:#6a5aa8; }
@@ -505,7 +506,7 @@ var I18N = {
     storyBtn:'В сторис', storyText:'Я набрал(а) {s} очков в БлокПоп! Сможешь больше? Играй:',
     storyDuelText:'Я выиграл(а) дуэль в БлокПоп со счётом {s}! Вызовешь меня?',
     player:'Игрок', undoDoneFree:'Ход отменён (отмены: {n})',
-    modeBlitz:'Блиц', modeMarathon:'Марафон',
+    modeBlitz:'Блиц', modeMarathon:'Марафон', inlineDuelWord:'дуэль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
   en: {
@@ -575,7 +576,7 @@ var I18N = {
     storyBtn:'To story', storyText:'I scored {s} points in BlockPop! Can you beat me? Play:',
     storyDuelText:'I won a BlockPop duel with {s} points! Dare to challenge me?',
     player:'Player', undoDoneFree:'Move undone (undos left: {n})',
-    modeBlitz:'Blitz', modeMarathon:'Marathon',
+    modeBlitz:'Blitz', modeMarathon:'Marathon', inlineDuelWord:'duel',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
 };
@@ -877,8 +878,14 @@ function spawnCur(){
 }
 function useSkip(){
   if (state!=='aim' || !curBlock || skipCooldown>0) return;
-  curBlock.v = nextQ.shift();
-  nextQ.push(rndNext());
+  if (duelActive){
+    // колода общая для обоих: меняем текущий блок со следующим местами,
+    // НЕ вытягивая новый — иначе указатель колоды уедет и расклады разойдутся
+    var tmp = curBlock.v; curBlock.v = nextQ[0]; nextQ[0] = tmp;
+  } else {
+    curBlock.v = nextQ.shift();
+    nextQ.push(rndNext());
+  }
   skipCooldown = SKIP_CD;
   updateSkipBtn();
   sfxClick(); haptic('drop');
@@ -1126,7 +1133,9 @@ function flushPending(){
   });
 }
 document.addEventListener('visibilitychange', function(){
-  if (document.hidden) savePending(); else lsSet('bp_pending', '');
+  // очищает запись только тот, кто партию засчитал (countAbandoned/gameOver/startGame):
+  // сброс на «показали снова» гасил бы её раньше, чем flushPending успеет прочитать
+  if (document.hidden) savePending();
 });
 window.addEventListener('pagehide', savePending); // iOS/WebView: закрытие мини-аппа
 
@@ -1675,9 +1684,24 @@ window.addEventListener('keydown', function(e){
 $('btnPlay').addEventListener('click', function(){ audio(); sfxClick(); hide('scrMenu'); startGame(); });
 $('btnPause').addEventListener('click', function(){ sfxClick(); if(state==='pause') doResume(); else doPause(); });
 $('btnResume').addEventListener('click', function(){ sfxClick(); doResume(); });
-$('btnRestart1').addEventListener('click', function(){ if (duelActive) return; sfxClick(); hide('scrPause'); startGame(); });
+$('btnRestart1').addEventListener('click', function(){ if (duelActive) return; sfxClick(); countAbandoned(); hide('scrPause'); startGame(); });
 $('btnAgain').addEventListener('click', function(){ sfxClick(); hide('scrOver'); startGame(); });
-$('btnMenu1').addEventListener('click', function(){ sfxClick(); countAbandoned(); openMenu(); });
+// выход из оплаченного раунда возвращает на экран режима (оттуда можно войти снова),
+// а не в главное меню, откуда дуэль и турнир недостижимы, а ставка сгорела бы молча
+function leaveRound(){
+  var kind = duelKind;
+  duelActive = false; state = 'menu'; musicStop();
+  hide('scrPause'); hide('scrOver');
+  if (kind === 'daily'){ openDaily(); return; }
+  if (kind === 'tour' && tourParam){ openTour(); return; }
+  if (kind === 'duel' && duelParam){ duelIntro(); return; }
+  openMenu();
+}
+$('btnMenu1').addEventListener('click', function(){
+  sfxClick();
+  if (duelActive){ leaveRound(); return; }
+  countAbandoned(); openMenu();
+});
 $('btnMenu2').addEventListener('click', function(){ sfxClick(); openMenu(); });
 function toggleSound(){ sndOn=!sndOn; storeSet('bp_snd', sndOn?'1':'0'); syncToggles(); sfxClick(); }
 function toggleMusic(){ musOn=!musOn; storeSet('bp_mus', musOn?'1':'0'); syncToggles(); syncMusic(); sfxClick(); }
@@ -1855,7 +1879,7 @@ $('btnDuelStart').addEventListener('click', function(){
 });
 $('btnDuelMenu').addEventListener('click', function(){ sfxClick(); duelActive=false; hide('scrDuel'); openMenu(); });
 function shareDuel(){
-  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery('дуэль', ['users','groups']); return; } catch(e){} }
+  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery(t('inlineDuelWord'), ['users','groups']); return; } catch(e){} }
   if (tg && tg.openTelegramLink){ try { tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) + '&text=' + encodeURIComponent(t('duelInvite'))); } catch(e){} }
 }
 $('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
@@ -2462,7 +2486,7 @@ function shareStory(sc, duelMode){
     var u = tg.initDataUnsafe && tg.initDataUnsafe.user;
     if (u && u.is_premium) params.widget_link = { url: myRefLink(), name: 'BlockPop!' };
     tg.shareToStory(STORY_IMG, params);
-    haptic('med');
+    haptic('rec');
   } catch(e){}
 }
 var lastDuelStoryScore = null;
@@ -2572,10 +2596,15 @@ $('btnShare').addEventListener('click', function(){
 });
 
 // ---------- Инициализация ----------
+// локальный рекорд читаем сразу: если ответ облака не придёт, best не должен остаться нулём —
+// иначе первая же партия «поставит рекорд» и затрёт настоящий
+best = parseInt(lsGet('bp_best'), 10) || 0;
+updateHud(); $('menuBest').textContent = t('bestN', { n: best });
 storeGet('bp_best', function(v){
-  best = parseInt(v,10)||0; updateHud(); $('menuBest').textContent=t('bestN',{n:best});
-  flushPending(); // партия, прерванная закрытием приложения, засчитывается при возврате
+  var cloud = parseInt(v, 10) || 0;
+  if (cloud > best){ best = cloud; updateHud(); $('menuBest').textContent = t('bestN', { n: best }); }
 });
+flushPending(); // партия, прерванная закрытием приложения, засчитывается при возврате
 storeGet('bp_snd', function(v){ if(v==='0') sndOn=false; syncToggles(); });
 storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 storeGet('bp_vib', function(v){ if(v==='0'){ vibOn=false; $('tglVib').classList.add('off'); } });
