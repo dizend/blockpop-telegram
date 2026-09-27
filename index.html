@@ -35,6 +35,8 @@
   .shopcard .sbtn.eqd { background:rgba(255,255,255,.12); box-shadow:none; border:2px solid rgba(255,225,77,.55); color:#ffe14d; }
   .shopcard .sbtn.lock { background:rgba(255,255,255,.10); box-shadow:none; opacity:.75; }
   .shopcard .sbtn:disabled { opacity:.55; }
+  .shopcard .sbtn.need { background:rgba(255,255,255,.10); box-shadow:none; color:#ff9d9d; border:2px dashed rgba(255,157,157,.5); opacity:1; }
+  body.light .shopcard .sbtn.need { background:rgba(46,33,84,.05); color:#c2453f; border-color:rgba(194,69,63,.45); }
   body.light .shopcard { background:rgba(46,33,84,.05); border-color:rgba(46,33,84,.1); }
   body.light .shopcard .sn b { color:#2e2154; }
   body.th-space #wrap { background:linear-gradient(180deg,#0b1030 0%,#0a0c22 55%,#05060f 100%); }
@@ -517,6 +519,8 @@ var I18N = {
     sk_prism:'Призма', sk_prism_d:'Гранёные самоцветы. Виден всем в таблицах',
     badge_sup:'Значок «Меценат»', badge_sup_d:'Сердечко рядом с именем в таблицах и профиле',
     cont_pack:'Продолжение партии', cont_pack_d:'Взрывает два нижних ряда после проигрыша',
+    needGems:'Не хватает {n}', needGemsHint:'До покупки не хватает {n} кристаллов — заработай в партиях или забери бонус дня',
+    freeItem:'бесплатный',
     contLeft:'оплачено: {n}', profSupporter:'Меценат — поддержал игру',
     modeBlitz:'Блиц', modeMarathon:'Марафон', inlineDuelWord:'дуэль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
@@ -595,6 +599,8 @@ var I18N = {
     sk_prism:'Prism', sk_prism_d:'Faceted gemstones. Everyone sees it in the rankings',
     badge_sup:'"Supporter" badge', badge_sup_d:'A heart next to your name in rankings and profile',
     cont_pack:'Run continue', cont_pack_d:'Blows up the two bottom rows after a game over',
+    needGems:'Need {n} more', needGemsHint:'You need {n} more crystals — earn them in games or claim the daily bonus',
+    freeItem:'free',
     contLeft:'paid: {n}', profSupporter:'Supporter — backed the game',
     modeBlitz:'Blitz', modeMarathon:'Marathon', inlineDuelWord:'duel',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
@@ -2300,6 +2306,7 @@ function renderShop(){
     var meta = shopItemMeta(isDefault ? 'sk_default' : id);
     var nameKey = isDefault ? 'sk_default' : meta[0], descKey = isDefault ? 'sk_default_d' : meta[1];
     var extra = id === 'undo10' && shopState.undoCredits > 0 ? ' · ' + t('undoLeft', { n: shopState.undoCredits }) : '';
+    if (isDefault) extra += ' · ' + t('freeItem');
     sn.innerHTML = '<b>' + t(nameKey) + '</b><small>' + t(descKey) + extra + '</small>';
     var btn = document.createElement('button'); btn.className = 'sbtn';
     if (it.kind === 'pack'){
@@ -2321,9 +2328,12 @@ function renderShop(){
         sfxClick();
         showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achHint', { t: achName }));
       };
+    } else if (shopState.balance < it.cost){
+      btn.className = 'sbtn need';
+      btn.innerHTML = t('needGems', { n: it.cost - shopState.balance }) + ' ' + IC_GEM;
+      btn.onclick = function(){ sfxClick(); showToast(IC_GEM + ' ' + t('needGemsHint', { n: it.cost - shopState.balance })); };
     } else {
       btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
-      if (shopState.balance < it.cost) btn.disabled = true;
       btn.onclick = function(){ shopBuy(id, btn); };
     }
     card.appendChild(cv2); card.appendChild(sn); card.appendChild(btn);
