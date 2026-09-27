@@ -77,6 +77,7 @@
   .t-rd { background:linear-gradient(180deg,#ff7a7a,#f04444); box-shadow:0 4px 0 #a82525; }
   .t-bl { background:linear-gradient(180deg,#5ec8ff,#3d8bff); box-shadow:0 4px 0 #2456b8; }
   .t-pu { background:linear-gradient(180deg,#c39bff,#8e5cf7); box-shadow:0 4px 0 #5a2ea6; }
+  .t-gr { background:linear-gradient(180deg,#7ddc7d,#3fae4a); box-shadow:0 4px 0 #24762c; }
   .btn.slim { padding:10px 24px; font-size:16px; box-shadow:0 4px 0 #2456b8; min-width:0; }
   .btn.ghost.slim { padding:8px 18px; font-size:14px; box-shadow:none; }
   .tgl { width:48px; height:48px; border-radius:15px; }
@@ -211,6 +212,7 @@
     <button class="mtile t-rd hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
     <button class="mtile t-bl hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
     <button class="mtile t-pu hidden" id="btnShop"><svg class="ic"><use href="#i-cart"/></svg>Магазин</button>
+    <button class="mtile t-gr hidden" id="btnTour" style="grid-column:span 2"><svg class="ic"><use href="#i-arena"/></svg>Турнир</button>
   </div>
   <button class="btn ghost slim hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
   <div class="best hidden" id="refInfo" style="font-size:12px"></div>
@@ -285,6 +287,15 @@
   <div class="best" id="profStyle"></div>
   <div class="sub" id="profStats"></div>
   <button class="btn ghost" id="btnProfClose">Назад</button>
+</div>
+
+<div id="scrDuelPick" class="screen hidden">
+  <div class="logo" style="font-size:min(9vw,34px)"><svg class="ic"><use href="#i-duel"/></svg> <span id="dpTitle">Дуэль</span></div>
+  <div class="sub" id="dpText"></div>
+  <button class="btn" id="btnModeBlitz" style="background:linear-gradient(180deg,#ffd54f,#ffab00);box-shadow:0 5px 0 #c17900, 0 8px 16px rgba(0,0,0,.35)"></button>
+  <button class="btn green" id="btnModeClassic"></button>
+  <button class="btn blue" id="btnModeMarathon"></button>
+  <button class="btn ghost" id="btnDpClose"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
 
 <div id="scrDuel" class="screen hidden">
@@ -415,7 +426,8 @@ function refreshMe(){
     crysLoading = false; clearTimeout(crysTimer);
     if (d && d.ok){
       if (sentRef && pendingRef === sentRef) pendingRef = null; // код доставлен — только теперь забываем
-      myBalance=d.balance; bonusState=d.bonus;
+      if (d.balance != null) myBalance = d.balance;
+      bonusState = d.bonus;
       if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); }
       if (d.skin !== undefined){ applyEquipped(d.skin, d.ftheme); undoCredits = d.undoCredits || 0; }
       if (d.contCredits !== undefined) myContCredits = d.contCredits;
@@ -545,6 +557,10 @@ var I18N = {
     undo50:'Отмены ×50', undo50_d:'50 отмен хода — дешевле, чем пять малых наборов',
     cont_pack5:'Продолжения ×5', cont_pack5_d:'Пять продолжений про запас — выгоднее поштучных',
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
+    duelPickText:'Выбери длительность — дальше отправишь карточку в любой чат, и первые двое станут дуэлянтами.',
+    modeClassic:'Классика', dropsN:'{n} бросков',
+    inlineBlitz:'блиц', inlineClassic:'классика', inlineMarathon:'марафон', inlineTourWord:'турнир',
+    tourHint:'Турнир создаётся карточкой в чате: набери @BlockPopGameBot в любом чате и выбери «Турнир».',
     contLeft:'оплачено: {n}', profSupporter:'Меценат — поддержал игру',
     modeBlitz:'Блиц', modeMarathon:'Марафон', inlineDuelWord:'дуэль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
@@ -634,6 +650,10 @@ var I18N = {
     undo50:'Undos ×50', undo50_d:'50 move undos — cheaper than five small packs',
     cont_pack5:'Continues ×5', cont_pack5_d:'Five continues in stock — cheaper than one by one',
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
+    duelPickText:'Pick the length — then send the card to any chat, and the first two players become the duelists.',
+    modeClassic:'Classic', dropsN:'{n} drops',
+    inlineBlitz:'blitz', inlineClassic:'classic', inlineMarathon:'marathon', inlineTourWord:'tournament',
+    tourHint:'A tournament starts as a card in a chat: type @BlockPopGameBot in any chat and pick "Tournament".',
     contLeft:'paid: {n}', profSupporter:'Supporter — backed the game',
     modeBlitz:'Blitz', modeMarathon:'Marathon', inlineDuelWord:'duel',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
@@ -1883,7 +1903,7 @@ function updateHud(){
 function openMenu(){
   state='menu'; musicStop();
   duelActive = false;
-  hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour'); hide('scrShop'); hide('scrProfile');
+  hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour'); hide('scrShop'); hide('scrProfile'); hide('scrDuelPick');
   checkDailyBadge();
   $('menuBest').textContent = t('bestN', { n: best });
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
@@ -2138,13 +2158,42 @@ $('btnDuelStart').addEventListener('click', function(){
   duelJoin();
 });
 $('btnDuelMenu').addEventListener('click', function(){ sfxClick(); duelActive=false; hide('scrDuel'); openMenu(); });
-function shareDuel(){
-  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery(t('inlineDuelWord'), ['users','groups']); return; } catch(e){} }
+function shareDuel(word){
+  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery(word || t('inlineDuelWord'), ['users','groups']); return; } catch(e){} }
   if (tg && tg.openTelegramLink){ try { tg.openTelegramLink('https://t.me/share/url?url=' + encodeURIComponent(TG_BOT_URL) + '&text=' + encodeURIComponent(t('duelInvite'))); } catch(e){} }
 }
 $('btnDuelRematch').addEventListener('click', function(){ sfxClick(); shareDuel(); });
 if (tg) $('btnDuel').classList.remove('hidden');
-$('btnDuel').addEventListener('click', function(){ sfxClick(); shareDuel(); });
+$('btnDuel').addEventListener('click', function(){ sfxClick(); openDuelPick(); });
+function openDuelPick(){
+  hide('scrMenu'); show('scrDuelPick'); state = 'menu';
+  applyDuelPickTexts();
+}
+function applyDuelPickTexts(){
+  var dp = $('dpTitle'); if (dp) dp.textContent = t('duelTitle');
+  var dt = $('dpText'); if (dt) dt.innerHTML = t('duelPickText');
+  setModeBtn('btnModeBlitz', '⚡', 'modeBlitz', 20);
+  setModeBtn('btnModeClassic', '⚔️', 'modeClassic', 40);
+  setModeBtn('btnModeMarathon', '⛰️', 'modeMarathon', 80);
+  setBtn('btnDpClose', 'home', 'toMenu', ' ');
+}
+function setModeBtn(id, icon, key, drops){
+  var b = $(id); if (!b) return;
+  b.innerHTML = icon + ' ' + t(key) + ' · ' + t('dropsN', { n: drops });
+}
+['btnModeBlitz','btnModeClassic','btnModeMarathon'].forEach(function(id, i){
+  var word = ['inlineBlitz','inlineClassic','inlineMarathon'][i];
+  $(id).addEventListener('click', function(){ sfxClick(); shareDuel(t(word)); });
+});
+$('btnDpClose').addEventListener('click', function(){ sfxClick(); hide('scrDuelPick'); openMenu(); });
+// турнир: если пришли по карточке — открываем его, иначе предлагаем создать в чате
+if (tg) $('btnTour').classList.remove('hidden');
+$('btnTour').addEventListener('click', function(){
+  sfxClick();
+  if (tourParam){ hide('scrMenu'); openTour(); return; }
+  if (tg && tg.switchInlineQuery){ try { tg.switchInlineQuery(t('inlineTourWord'), ['users','groups']); return; } catch(e){} }
+  showToast('<svg class="ic"><use href="#i-arena"/></svg> ' + t('tourHint'));
+});
 
 // ---------- Вызов дня ----------
 var dailyState = null;
@@ -2995,6 +3044,8 @@ function applyLang(){
   setBtn('btnDuelStory', 'story', 'storyBtn');
   setBtn('btnDuelMenu', 'home', 'toMenu', ' ');
   setBtn('btnShop', 'cart', 'shop');
+  var tt2 = $('btnTour'); if (tt2) tt2.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg>' + t('tourTitle');
+  if (!$('scrDuelPick').classList.contains('hidden')) applyDuelPickTexts();
   setBtn('btnShopClose', 'home', 'toMenu', ' ');
   if (!document.getElementById('scrShop').classList.contains('hidden')) renderShop();
   renderQuests();
