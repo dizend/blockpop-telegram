@@ -48,6 +48,14 @@
   .nmtxt.fr-rain { border-image:linear-gradient(90deg,#ff6b6b,#ffe14d,#6bd96b,#5ec8ff,#c39bff) 1; border-radius:0;
                    background:linear-gradient(90deg,rgba(255,107,107,.16),rgba(94,200,255,.16),rgba(195,155,255,.16)); }
   body.light .nmtxt.fr-gold { border-color:#e0a800; color:#8a6400; }
+  .nmtxt.fr-live { border-color:transparent;
+    background:linear-gradient(rgba(24,16,45,.80),rgba(24,16,45,.80)) padding-box,
+               linear-gradient(90deg,#ff6b6b,#ffe14d,#6bd96b,#5ec8ff,#c39bff,#ff6b6b) border-box;
+    background-size:auto, 300% 100%; animation:frlive 3.2s linear infinite; }
+  body.light .nmtxt.fr-live { background:linear-gradient(rgba(243,238,252,.92),rgba(243,238,252,.92)) padding-box,
+               linear-gradient(90deg,#ff6b6b,#ffc400,#4caf50,#29b6f6,#ab47bc,#ff6b6b) border-box;
+    background-size:auto, 300% 100%; }
+  @keyframes frlive { from { background-position:0 0, 0 0; } to { background-position:0 0, 300% 0; } }
   .toast { position:fixed; left:50%; transform:translateX(-50%); bottom:84px; z-index:50; background:linear-gradient(180deg,#4a3a80,#37295f);
            border:2px solid rgba(255,225,77,.5); border-radius:16px; padding:10px 18px; color:#fff; font-weight:bold; font-size:15px;
            box-shadow:0 6px 18px rgba(0,0,0,.45); animation:toastin .3s ease, toastout .4s ease 3.2s forwards; max-width:86vw; text-align:center; }
@@ -535,6 +543,8 @@ var I18N = {
     fr_gold:'Золотая рамка', fr_gold_d:'Рамка вокруг имени в таблицах и профиле — видят все',
     fr_rain:'Радужная рамка', fr_rain_d:'Самая заметная рамка имени в таблицах — видят все',
     undo50:'Отмены ×50', undo50_d:'50 отмен хода — дешевле, чем пять малых наборов',
+    cont_pack5:'Продолжения ×5', cont_pack5_d:'Пять продолжений про запас — выгоднее поштучных',
+    fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
     contLeft:'оплачено: {n}', profSupporter:'Меценат — поддержал игру',
     modeBlitz:'Блиц', modeMarathon:'Марафон', inlineDuelWord:'дуэль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
@@ -622,6 +632,8 @@ var I18N = {
     fr_gold:'Gold frame', fr_gold_d:'A frame around your name in rankings and profile — everyone sees it',
     fr_rain:'Rainbow frame', fr_rain_d:'The flashiest name frame in the rankings — everyone sees it',
     undo50:'Undos ×50', undo50_d:'50 move undos — cheaper than five small packs',
+    cont_pack5:'Continues ×5', cont_pack5_d:'Five continues in stock — cheaper than one by one',
+    fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
     contLeft:'paid: {n}', profSupporter:'Supporter — backed the game',
     modeBlitz:'Blitz', modeMarathon:'Marathon', inlineDuelWord:'duel',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
@@ -1628,7 +1640,7 @@ function openProfile(uid, backId){
     $('profStats').innerHTML = lines.join('<br>');
   });
 }
-function frameCls(f){ return f === 'frame_gold' ? ' fr fr-gold' : f === 'frame_rain' ? ' fr fr-rain' : ''; }
+function frameCls(f){ return f === 'frame_gold' ? ' fr fr-gold' : f === 'frame_rain' ? ' fr fr-rain' : f === 'frame_live' ? ' fr fr-live' : ''; }
 // имя игрока в таблицах: корона чемпиона, рамка (покупка) и сердечко мецената
 function fillName(nm, r, crowned){
   nm.innerHTML = (crowned ? '<svg class="ic"><use href="#i-crown"/></svg> ' : '') +
@@ -2495,40 +2507,51 @@ function renderStarsSection(list){
   var meta = {
     skin_aurora:     ['sk_aurora', 'sk_aurora_d', 'skin'],
     skin_prism:      ['sk_prism', 'sk_prism_d', 'skin'],
+    frame_live:      ['fr_live', 'fr_live_d', 'frame'],
     badge_supporter: ['badge_sup', 'badge_sup_d', 'badge'],
     continue1:       ['cont_pack', 'cont_pack_d', 'pack'],
+    continue5:       ['cont_pack5', 'cont_pack5_d', 'pack'],
   };
   var hdr = document.createElement('div');
   hdr.className = 'best';
   hdr.style.cssText = 'font-weight:bold;margin-top:6px';
   hdr.innerHTML = t('starsHdr');
   list.appendChild(hdr);
-  ['skin_aurora', 'skin_prism', 'badge_supporter', 'continue1'].forEach(function(id){
+  ['skin_aurora', 'skin_prism', 'frame_live', 'badge_supporter', 'continue1', 'continue5'].forEach(function(id){
     var it = shopState.starsCatalog[id]; if (!it) return;
     var m = meta[id];
     var owned = !!shopState.owned[id];
-    var eq = m[2] === 'skin' && (shopState.equipped.skin || '') === id;
+    var eq = (m[2] === 'skin' && (shopState.equipped.skin || '') === id) ||
+             (m[2] === 'frame' && (shopState.equipped.frame || '') === id);
     var card = document.createElement('div');
     card.className = 'shopcard' + (eq ? ' eq' : '');
-    var cv2 = document.createElement('canvas'); cv2.width = 52; cv2.height = 52;
-    if (m[2] === 'skin') drawSkinPreview(cv2, id, 128);
-    else {
-      var c3 = cv2.getContext('2d');
-      c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0, 0, 52, 52);
-      c3.fillStyle = id === 'badge_supporter' ? '#ff6b8a' : '#ffd54f';
-      c3.font = 'bold 28px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle';
-      c3.fillText(id === 'badge_supporter' ? '♥' : '★', 26, 28);
+    var cv2;
+    if (m[2] === 'frame'){
+      // превью живой рамки — тот же CSS, что в таблицах, чтобы было видно переливание
+      cv2 = document.createElement('div');
+      cv2.className = 'nmtxt fr fr-live';
+      cv2.style.cssText = 'width:52px;height:52px;flex:none;box-sizing:border-box;padding:0';
+    } else {
+      cv2 = document.createElement('canvas'); cv2.width = 52; cv2.height = 52;
+      if (m[2] === 'skin') drawSkinPreview(cv2, id, 128);
+      else {
+        var c3 = cv2.getContext('2d');
+        c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0, 0, 52, 52);
+        c3.fillStyle = id === 'badge_supporter' ? '#ff6b8a' : '#ffd54f';
+        c3.font = 'bold 28px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle';
+        c3.fillText(id === 'badge_supporter' ? '♥' : '★', 26, 28);
+      }
     }
     var sn = document.createElement('div'); sn.className = 'sn';
-    var extra = id === 'continue1' && shopState.contCredits > 0 ? ' · ' + t('contLeft', { n: shopState.contCredits }) : '';
+    var extra = m[2] === 'pack' && shopState.contCredits > 0 ? ' · ' + t('contLeft', { n: shopState.contCredits }) : '';
     sn.innerHTML = '<b>' + t(m[0]) + '</b><small>' + t(m[1]) + extra + '</small>';
     var btn = document.createElement('button'); btn.className = 'sbtn';
     if (eq){
       btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
-      btn.onclick = function(){ shopEquip('skin', '', btn); };
-    } else if (owned && m[2] === 'skin'){
+      btn.onclick = function(){ shopEquip(m[2], '', btn); };
+    } else if (owned && (m[2] === 'skin' || m[2] === 'frame')){
       btn.textContent = t('equipBtn');
-      btn.onclick = function(){ shopEquip('skin', id, btn); };
+      btn.onclick = function(){ shopEquip(m[2], id, btn); };
     } else if (owned && m[2] === 'badge'){
       btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
     } else {
