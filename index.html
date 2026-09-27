@@ -350,7 +350,7 @@ var GAME_CTX = null;
 function submitScore(s){
   if (!GAME_CTX || !SCORE_API) return;
   var el = document.getElementById('scoreSent');
-  if (el){ el.textContent = t('sending'); el.classList.remove('hidden'); }
+  if (el){ el.textContent = ''; el.classList.add('hidden'); }   // один лоадер на экране — он у начисления
   try {
     fetch(SCORE_API, {
       method: 'POST',
@@ -405,7 +405,7 @@ function updateCrysUI(animate){
   var pill=$('crysPill'), bb=$('btnBonus');
   if (crysLoading && myBalance===null){
     pill.style.display='';
-    $('crysVal').innerHTML = '<span class="spinner"></span>';
+    $('crysVal').innerHTML = '<span class="spinner pl"></span>';
     bb.classList.add('hidden');
     return;
   }
@@ -447,7 +447,7 @@ $('btnBonus').addEventListener('click', function(){
   bonusBusy = true;
   var bb = $('btnBonus'), oldHtml = bb.innerHTML;
   bb.disabled = true;
-  bb.innerHTML = '<span class="spinner"></span> ' + t('getting');
+  bb.innerHTML = t('getting');
   wapi('/bonus', null, function(d){
     bonusBusy = false; bb.disabled = false;
     if (!d || !d.ok){ bb.innerHTML = oldHtml; return; }
@@ -563,7 +563,7 @@ var I18N = {
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
     duelPickText:'Выбери длительность — дальше отправишь карточку в любой чат, и первые двое станут дуэлянтами.',
     resumeBtn:'Продолжить партию · {n}', resumeDone:'Партия восстановлена — играем дальше!',
-    evHdr:'Правило недели', evToast:'Правило недели: {n}',
+    evHdr:'Правило недели', evToast:'Правило недели: {n}', wait:'…',
     modeClassic:'Классика', dropsN:'{n} бросков',
     inlineBlitz:'блиц', inlineClassic:'классика', inlineMarathon:'марафон', inlineTourWord:'турнир',
     tourHint:'Турнир создаётся карточкой в чате: набери @BlockPopGameBot в любом чате и выбери «Турнир».',
@@ -658,7 +658,7 @@ var I18N = {
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
     duelPickText:'Pick the length — then send the card to any chat, and the first two players become the duelists.',
     resumeBtn:'Resume run · {n}', resumeDone:'Run restored — keep playing!',
-    evHdr:'Rule of the week', evToast:'Rule of the week: {n}',
+    evHdr:'Rule of the week', evToast:'Rule of the week: {n}', wait:'…',
     modeClassic:'Classic', dropsN:'{n} drops',
     inlineBlitz:'blitz', inlineClassic:'classic', inlineMarathon:'marathon', inlineTourWord:'tournament',
     tourHint:'A tournament starts as a card in a chat: type @BlockPopGameBot in any chat and pick "Tournament".',
@@ -841,7 +841,7 @@ var particles = [], floaters = [], shakeT = 0, bannerT = 0, bannerTxt = '', flas
 var pausedFrom = 'aim';
 
 function $(id){ return document.getElementById(id); }
-function show(id){ $(id).classList.remove('hidden'); }
+function show(id){ setTimeout(capLoaders, 0); $(id).classList.remove('hidden'); }
 function hide(id){ $(id).classList.add('hidden'); }
 
 // ---------- Размеры ----------
@@ -1199,6 +1199,14 @@ function bumpBest(sc){
   var mb = $('menuBest'); if (mb) mb.textContent = t('bestN', { n: best });
   return true;
 }
+// На одном экране не должно быть двух «крутилок»: лишние гасим, текст остаётся.
+function capLoaders(){
+  try {
+    var scr = document.querySelector('.screen:not(.hidden)'); if (!scr) return;
+    var pls = scr.querySelectorAll('.spinner.pl');
+    for (var i = 0; i < pls.length; i++) pls[i].style.display = i === 0 ? '' : 'none';
+  } catch(e){}
+}
 function gameIsLive(){ return state==='aim' || state==='drop' || state==='resolve' || state==='pause'; }
 // выход в меню посреди обычной партии = партия засчитана (рекорд + кристаллы + задания)
 function countAbandoned(){
@@ -1314,7 +1322,7 @@ function gameOver(){
   if (score > 0 && authPayload() && !earnedThisRun){
     earnedThisRun = true;
     var oe0 = $('overEarn');
-    if (oe0){ oe0.innerHTML = '<span class="spinner"></span> ' + t('crediting'); oe0.classList.remove('hidden'); }
+    if (oe0){ oe0.innerHTML = '<span class="spinner pl"></span> ' + t('crediting'); oe0.classList.remove('hidden'); }
     wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
       var oe = $('overEarn'); if (!oe) return;
       if (!d || !d.ok){ oe.classList.add('hidden'); return; }
@@ -1706,7 +1714,7 @@ function openProfile(uid, backId){
   hide(profBackId); show('scrProfile'); if (state !== 'over') state = 'menu';
   $('profName').textContent = '…';
   $('profStyle').innerHTML = '';
-  $('profStats').innerHTML = '<span class="spinner"></span> ' + t('loading');
+  $('profStats').innerHTML = '<span class="spinner pl"></span> ' + t('loading');
   var cv = $('profCv'); cv.getContext('2d').clearRect(0,0,cv.width,cv.height);
   $('btnProfClose').innerHTML = t('profBack');
   wapi('/profile', { uid: uid }, function(d){
@@ -2114,7 +2122,7 @@ function duelUI(opts){
   if (opts.big != null){ big.textContent = opts.big; big.classList.remove('hidden'); } else big.classList.add('hidden');
   var bs = $('btnDuelStart');
   bs.classList.toggle('hidden', !opts.start);
-  if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? '<span class="spinner"></span> ' + t('joining') : (opts.start === true ? t('play') : opts.start); }
+  if (opts.start){ bs.disabled = !!opts.busy; bs.innerHTML = opts.busy ? t('joining') : (opts.start === true ? t('play') : opts.start); }
   $('btnDuelRematch').classList.toggle('hidden', !opts.rematch);
   if (opts.story != null) lastDuelStoryScore = opts.story;
   $('btnDuelStory').classList.toggle('hidden', !(opts.story != null && canStory()));
@@ -2197,7 +2205,7 @@ function duelFinish(){
   setTimeout(function(){ checkQuests(true); }, 1500);
   if (duelKind === 'daily'){ dailyFinish(); return; }
   if (duelKind === 'tour'){ tourFinish(); return; }
-  duelUI({ title:t('duelTitle'), big: score, text: '<span class="spinner"></span> ' + t('sending'), start:false });
+  duelUI({ title:t('duelTitle'), big: score, text: '<span class="spinner pl"></span> ' + t('sending'), start:false });
   var payload = { duel: duelParam.raw, score: score, dur: Date.now()-gameStartTs, moves: dropsCount };
   wapi('/duel/score', payload, function(d){
     refreshMe();
@@ -2218,7 +2226,7 @@ $('btnDuelStart').addEventListener('click', function(){
   audio(); sfxClick();
   if (duelRetry){
     var pl = duelRetry;
-    duelUI({ title:t('duelTitle'), big: pl.score, text:'<span class="spinner"></span> ' + t('sending'), start:false });
+    duelUI({ title:t('duelTitle'), big: pl.score, text:'<span class="spinner pl"></span> ' + t('sending'), start:false });
     wapi('/duel/score', pl, function(d){
       refreshMe();
       if (!d || !d.ok){ duelUI({ title:t('duelTitle'), big: pl.score, text:t('duelResendLater'), start:t('duelResend') }); return; }
@@ -2279,9 +2287,9 @@ function renderDaily(){
   var d = dailyState;
   var info = $('dailyInfo'), big = $('dailyBig'), my = $('dailyMy'), list = $('dailyList'), play = $('btnDailyPlay');
   if (!d){
-    info.innerHTML = '<span class="spinner"></span> ' + t('loading');
+    info.innerHTML = '<span class="spinner pl"></span> ' + t('loading');
     big.classList.add('hidden'); my.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden');
-    return;
+    capLoaders(); return;
   }
   var left = Math.max(0, d.endsAt - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
@@ -2368,7 +2376,7 @@ function dailyFinish(){
   showDailyScreen();
   $('dailyBig').textContent = score; $('dailyBig').classList.remove('hidden');
   $('dailyMy').classList.add('hidden'); $('dailyList').innerHTML = ''; $('btnDailyPlay').classList.add('hidden');
-  $('dailyInfo').innerHTML = '<span class="spinner"></span> ' + t('sending');
+  $('dailyInfo').innerHTML = '<span class="spinner pl"></span> ' + t('sending');
   wapi('/daily/score', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
     refreshMe();
     if (!d || !d.ok){
@@ -2384,7 +2392,7 @@ $('btnDailyMenu').addEventListener('click', function(){ sfxClick(); openMenu(); 
 $('btnDailyPlay').addEventListener('click', function(){
   audio(); sfxClick();
   var play = $('btnDailyPlay');
-  play.disabled = true; play.innerHTML = '<span class="spinner"></span> ' + t('joining');
+  play.disabled = true; play.innerHTML = t('joining');
   wapi('/daily/join', null, function(d){
     if (d && d.ok){ startDailyRound(d.seed, d.event); return; }
     play.disabled = false; play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('play');
@@ -2400,7 +2408,7 @@ function showTourScreen(){ hide('scrMenu'); hide('scrTop'); hide('scrDuel'); hid
 function renderTour(){
   var v = tourState;
   var info = $('tourInfo'), big = $('tourBig'), list = $('tourList'), play = $('btnTourPlay');
-  if (!v){ info.innerHTML = '<span class="spinner"></span> ' + t('loading'); big.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden'); return; }
+  if (!v){ info.innerHTML = '<span class="spinner pl"></span> ' + t('loading'); big.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden'); capLoaders(); return; }
   var left = Math.max(0, v.deadline - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
   var prizesTxt = (v.prizes && v.prizes.length) ? v.prizes.map(function(p, i){ return '#' + (i+1) + ': ' + p; }).join(' · ') + ' ' + IC_GEM : '';
@@ -2465,7 +2473,7 @@ function tourFinish(){
   showTourScreen();
   $('tourBig').textContent = score; $('tourBig').classList.remove('hidden');
   $('tourList').innerHTML = ''; $('btnTourPlay').classList.add('hidden');
-  $('tourInfo').innerHTML = '<span class="spinner"></span> ' + t('sending');
+  $('tourInfo').innerHTML = '<span class="spinner pl"></span> ' + t('sending');
   wapi('/tour/score', { tour: tourParam.raw, score: score, dur: Date.now() - gameStartTs, moves: dropsCount }, function(d){
     refreshMe();
     if (!d || !d.ok){ $('tourInfo').textContent = t('tourSendFail'); return; }
@@ -2476,7 +2484,7 @@ $('btnTourMenu').addEventListener('click', function(){ sfxClick(); hide('scrTour
 $('btnTourPlay').addEventListener('click', function(){
   audio(); sfxClick();
   var play = $('btnTourPlay');
-  play.disabled = true; play.innerHTML = '<span class="spinner"></span> ' + t('joining');
+  play.disabled = true; play.innerHTML = t('joining');
   wapi('/tour/join', { tour: tourParam.raw }, function(d){
     if (d && d.ok){
       duelActive = true; duelKind = 'tour';
@@ -2559,9 +2567,9 @@ function renderShop(){
   var list = $('shopList');
   $('shopTitle').textContent = t('shop');
   $('shopBalLbl').textContent = t('crystals');
-  $('shopBal').innerHTML = shopState ? IC_GEM + ' ' + shopState.balance : '<span class="spinner"></span>';
+  $('shopBal').innerHTML = shopState ? IC_GEM + ' ' + shopState.balance : IC_GEM + ' —';
   list.innerHTML = '';
-  if (!shopState){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
+  if (!shopState){ list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>'; return; }
   var order = ['default', 'skin_neon', 'skin_pixel', 'skin_pets', 'skin_candy', 'skin_robo', 'skin_gold',
                'theme_space', 'theme_sunset', 'theme_deep', 'frame_gold', 'frame_rain', 'undo10', 'undo50'];
   order.forEach(function(id){
@@ -2637,6 +2645,7 @@ function renderShop(){
     list.appendChild(card);
   });
   renderStarsSection(list);
+  capLoaders();
 }
 // товары за звёзды: премиум-стили, значок и продолжения партии
 function renderStarsSection(list){
@@ -2708,7 +2717,7 @@ function openShop(){
   });
 }
 function shopBuy(id, btn){
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true; btn.innerHTML = t('wait');
   wapi('/shop/buy', { item: id }, function(d){
     if (d && d.ok){
       myBalance = d.balance; undoCredits = d.undoCredits; updateCrysUI(true);
@@ -2722,7 +2731,7 @@ function shopBuy(id, btn){
   });
 }
 function shopEquip(kind, id, btn){
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span>';
+  btn.disabled = true; btn.innerHTML = t('wait');
   var k = kind === 'theme' ? 'theme' : kind === 'frame' ? 'frame' : 'skin';
   wapi('/shop/equip', { kind: k, item: id }, function(d){
     if (d && d.ok && shopState){
@@ -2761,7 +2770,7 @@ function renderQuests(){
       btn.className = 'sbtn';
       btn.innerHTML = t('claimBtn', { r: q.r + ' ' + IC_GEM });
       btn.onclick = (function(qq, bb){ return function(){
-        bb.disabled = true; bb.innerHTML = '<span class="spinner"></span>';
+        bb.disabled = true; bb.innerHTML = t('wait');
         wapi('/quests/claim', { id: qq.id }, function(d){
           if (d && d.ok){
             qq.claimed = true;
@@ -2826,7 +2835,7 @@ function renderHistory(){
   var list = $('topList');
   list.innerHTML = '';
   $('topMe').textContent = '';
-  if (!duelHist){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
+  if (!duelHist){ list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>'; return; }
   if (!duelHist.length){ list.innerHTML = '<div class="best">' + t('histEmpty') + '</div>'; return; }
   for (var i = 0; i < duelHist.length; i++){
     var h = duelHist[i];
@@ -2853,7 +2862,7 @@ function renderAch(){
   var list = $('topList');
   list.innerHTML = '';
   $('topMe').textContent = '';
-  if (!achDefs){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
+  if (!achDefs){ list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>'; return; }
   var earnedN = 0, total = 0;
   for (var code in achDefs){
     total++;
@@ -2883,7 +2892,7 @@ function renderTop(){
   if (topTab === 'a'){ renderAch(); return; }
   var list = $('topList');
   list.innerHTML = '';
-  if (!topData){ list.innerHTML = '<div class="best"><span class="spinner"></span> ' + t('loading') + '</div>'; return; }
+  if (!topData){ list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>'; capLoaders(); return; }
   var rows = topTab === 'g' ? topData.global : topData.rivals;
   if (!rows || !rows.length){
     list.innerHTML = '<div class="best">' + t('topEmpty') + '</div>';
@@ -3003,7 +3012,7 @@ function tryContinue(){
   var btn = $('btnContinue'); if (!btn || contBusy || contUsed) return;
   sfxClick(); contBusy = true;
   var old = btn.innerHTML;
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + t('paying');
+  btn.disabled = true; btn.innerHTML = t('paying');
   function restore(msg){
     contBusy = false; btn.disabled = false; btn.innerHTML = old;
     if (msg) showToast(msg);
@@ -3025,7 +3034,7 @@ function tryContinue(){
 $('btnContinue').addEventListener('click', tryContinue);
 function starsBuy(item, btn){
   var old = btn.innerHTML;
-  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + t('paying');
+  btn.disabled = true; btn.innerHTML = t('paying');
   payFor(item, function(ok, status){
     if (!ok){
       btn.disabled = false; btn.innerHTML = old;
