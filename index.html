@@ -29,13 +29,15 @@
   .shopcard canvas { flex:none; border-radius:10px; }
   .shopcard .sn { flex:1; text-align:left; }
   .shopcard .sn b { color:#fff; font-size:15px; display:block; }
-  .shopcard .sn small { color:#8f7fc9; font-size:12px; }
+  .shopcard .sn small { color:#8f7fc9; font-size:12px; display:block; }
   .shopcard .sbtn { flex:none; border:none; border-radius:12px; padding:9px 14px; font-family:inherit; font-weight:bold; font-size:13px; color:#fff; cursor:pointer;
                     background:linear-gradient(180deg,#7ee06b,#3fbf4d); box-shadow:0 3px 0 #23803a; }
   .shopcard .sbtn.eqd { background:rgba(255,255,255,.12); box-shadow:none; border:2px solid rgba(255,225,77,.55); color:#ffe14d; }
   .shopcard .sbtn.lock { background:rgba(255,255,255,.10); box-shadow:none; opacity:.75; }
   .shopcard .sbtn:disabled { opacity:.55; }
-  .shopcard .sbtn.need { background:rgba(255,255,255,.10); box-shadow:none; color:#ff9d9d; border:2px dashed rgba(255,157,157,.5); opacity:1; }
+  .shopcard .sbtn.need { background:rgba(255,255,255,.10); box-shadow:none; color:#ffc9c9; border:2px dashed rgba(255,157,157,.45); opacity:1; }
+  .shopcard .sn small.lack { color:#ff9d9d; font-size:11px; opacity:.95; }
+  body.light .shopcard .sn small.lack { color:#c2453f; }
   body.light .shopcard .sbtn.need { background:rgba(46,33,84,.05); color:#c2453f; border-color:rgba(194,69,63,.45); }
   body.light .shopcard { background:rgba(46,33,84,.05); border-color:rgba(46,33,84,.1); }
   body.light .shopcard .sn b { color:#2e2154; }
@@ -548,7 +550,7 @@ var I18N = {
     sk_prism:'Призма', sk_prism_d:'Гранёные самоцветы. Виден всем в таблицах',
     badge_sup:'Значок «Меценат»', badge_sup_d:'Сердечко рядом с именем в таблицах и профиле',
     cont_pack:'Продолжение партии', cont_pack_d:'Взрывает два нижних ряда после проигрыша',
-    needGems:'Не хватает {n}', needGemsHint:'До покупки не хватает {n} кристаллов — заработай в партиях или забери бонус дня',
+    needGems:'не хватает {n}', needGemsHint:'До покупки не хватает {n} кристаллов — заработай в партиях или забери бонус дня',
     freeItem:'бесплатный',
     sk_candy:'Леденцы', sk_candy_d:'Глянцевые конфеты с сахарной спиралью',
     sk_robo:'Робо', sk_robo_d:'Металл, заклёпки и светодиодный глаз',
@@ -643,7 +645,7 @@ var I18N = {
     sk_prism:'Prism', sk_prism_d:'Faceted gemstones. Everyone sees it in the rankings',
     badge_sup:'"Supporter" badge', badge_sup_d:'A heart next to your name in rankings and profile',
     cont_pack:'Run continue', cont_pack_d:'Blows up the two bottom rows after a game over',
-    needGems:'Need {n} more', needGemsHint:'You need {n} more crystals — earn them in games or claim the daily bonus',
+    needGems:'need {n} more', needGemsHint:'You need {n} more crystals — earn them in games or claim the daily bonus',
     freeItem:'free',
     sk_candy:'Candy', sk_candy_d:'Glossy sweets with a sugar swirl',
     sk_robo:'Robo', sk_robo_d:'Metal plates, rivets and an LED eye',
@@ -2600,7 +2602,9 @@ function renderShop(){
     var nameKey = isDefault ? 'sk_default' : meta[0], descKey = isDefault ? 'sk_default_d' : meta[1];
     var extra = id === 'undo10' && shopState.undoCredits > 0 ? ' · ' + t('undoLeft', { n: shopState.undoCredits }) : '';
     if (isDefault) extra += ' · ' + t('freeItem');
-    sn.innerHTML = '<b>' + t(nameKey) + '</b><small>' + t(descKey) + extra + '</small>';
+    var lack = (!owned && !isDefault && !it.ach && it.cost > 0 && shopState.balance < it.cost) ? it.cost - shopState.balance : 0;
+    sn.innerHTML = '<b>' + t(nameKey) + '</b><small>' + t(descKey) + extra + '</small>' +
+      (lack ? '<small class="lack">' + t('needGems', { n: lack }) + ' ' + IC_GEM + '</small>' : '');
     var btn = document.createElement('button'); btn.className = 'sbtn';
     if (it.kind === 'pack'){
       btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
@@ -2622,8 +2626,8 @@ function renderShop(){
         showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achHint', { t: achName }));
       };
     } else if (shopState.balance < it.cost){
-      btn.className = 'sbtn need';
-      btn.innerHTML = t('needGems', { n: it.cost - shopState.balance }) + ' ' + IC_GEM;
+      btn.className = 'sbtn need';                     // цена видна всегда, нехватка — подсказкой в описании
+      btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
       btn.onclick = function(){ sfxClick(); showToast(IC_GEM + ' ' + t('needGemsHint', { n: it.cost - shopState.balance })); };
     } else {
       btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
