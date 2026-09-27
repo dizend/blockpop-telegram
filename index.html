@@ -147,6 +147,8 @@
   <symbol id="i-play" viewBox="0 0 24 24"><path d="M8 5.4c0-1.6 1.8-2.6 3.2-1.8l9.6 6.1c1.3.8 1.3 2.7 0 3.5l-9.6 6.1C9.8 20.2 8 19.2 8 17.6z"/></symbol>
   <symbol id="i-restart" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.7" stroke-linecap="round" d="M19.2 12a7.2 7.2 0 1 1-2.1-5.1"/><path d="M21.8 3.2v6.2c0 .6-.4 1-1 1h-6.2z"/></symbol>
   <symbol id="i-share" viewBox="0 0 24 24"><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" d="M12 14.2V4.6M8.3 7.8 12 4.1l3.7 3.7"/><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M5 12.8v4.9a2.3 2.3 0 0 0 2.3 2.3h9.4a2.3 2.3 0 0 0 2.3-2.3v-4.9"/></symbol>
+  <symbol id="i-star" viewBox="0 0 24 24"><path fill="#ffd54f" d="M12 2.6l2.9 6 6.6.9-4.8 4.6 1.2 6.5L12 17.5 6.1 20.6l1.2-6.5L2.5 9.5l6.6-.9z"/></symbol>
+  <symbol id="i-heart" viewBox="0 0 24 24"><path fill="#ff6b8a" d="M12 20.6s-7.6-4.7-7.6-9.9a4.3 4.3 0 0 1 7.6-2.7 4.3 4.3 0 0 1 7.6 2.7c0 5.2-7.6 9.9-7.6 9.9z"/></symbol>
   <symbol id="i-story" viewBox="0 0 24 24"><circle cx="12" cy="12" r="8.6" fill="none" stroke="currentColor" stroke-width="2.4" stroke-dasharray="9 4.5" stroke-linecap="round"/><path fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" d="M12 8.4v7.2M8.4 12h7.2"/></symbol>
   <symbol id="i-sound" viewBox="0 0 24 24"><path d="M4.2 9.6v4.8c0 .9.7 1.6 1.6 1.6h2.4l4.1 3.5c1 .9 2.6.1 2.6-1.2V7.7c0-1.3-1.6-2.1-2.6-1.2L8.2 10H5.8c-.9 0-1.6.7-1.6 1.6z" transform="translate(0,-1.2)"/><path fill="none" stroke="currentColor" stroke-width="2.3" stroke-linecap="round" d="M17.6 8.6a4.6 4.6 0 0 1 0 6.2M20.2 6.4a8 8 0 0 1 0 10.6"/></symbol>
   <symbol id="i-music" viewBox="0 0 24 24"><circle cx="7.7" cy="17.8" r="3.1"/><circle cx="17.9" cy="15.9" r="3.1"/><path fill="none" stroke="currentColor" stroke-width="2.4" stroke-linejoin="round" d="M10.8 17.8V6.9l10.2-2.3v11.3"/></symbol>
@@ -285,6 +287,7 @@
   <div class="newrec hidden" id="newRec"><svg class="ic"><use href="#i-trophy"/></svg> Новый рекорд!</div>
   <div class="best hidden" id="scoreSent"></div>
   <div class="best hidden" id="overEarn"></div>
+  <button class="btn hidden" id="btnContinue" style="background:linear-gradient(180deg,#ffd54f,#ffab00);box-shadow:0 5px 0 #c17900, 0 8px 16px rgba(0,0,0,.35)"><svg class="ic"><use href="#i-star"/></svg>Продолжить — 25 ⭐</button>
   <button class="btn green" id="btnAgain"><svg class="ic"><use href="#i-restart"/></svg>Ещё раз</button>
   <button class="btn blue" id="btnShare"><svg class="ic"><use href="#i-share"/></svg>Поделиться</button>
   <button class="btn blue hidden" id="btnStory"><svg class="ic"><use href="#i-story"/></svg>В сторис</button>
@@ -398,6 +401,7 @@ function refreshMe(){
       myBalance=d.balance; bonusState=d.bonus;
       if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); }
       if (d.skin !== undefined){ applyEquipped(d.skin, d.ftheme); undoCredits = d.undoCredits || 0; }
+      if (d.contCredits !== undefined) myContCredits = d.contCredits;
       if (d.refs){ myRefs = d.refs; updateRefInfo(); }
     }
     updateCrysUI(true);
@@ -506,6 +510,14 @@ var I18N = {
     storyBtn:'В сторис', storyText:'Я набрал(а) {s} очков в БлокПоп! Сможешь больше? Играй:',
     storyDuelText:'Я выиграл(а) дуэль в БлокПоп со счётом {s}! Вызовешь меня?',
     player:'Игрок', undoDoneFree:'Ход отменён (отмены: {n})',
+    contBtn:'Продолжить — {n} ⭐', contHave:'Продолжить (оплачено)', paying:'Оплата…',
+    payFail:'Оплата не прошла. Кристаллы и звёзды не списаны.', contDone:'Поехали! Нижние ряды очищены',
+    starsHdr:'За звёзды ⭐', starsBuy:'Купить · {n} ⭐', supporterT:'Меценат',
+    sk_aurora:'Аврора', sk_aurora_d:'Светящиеся блоки-сияние. Виден всем в таблицах',
+    sk_prism:'Призма', sk_prism_d:'Гранёные самоцветы. Виден всем в таблицах',
+    badge_sup:'Значок «Меценат»', badge_sup_d:'Сердечко рядом с именем в таблицах и профиле',
+    cont_pack:'Продолжение партии', cont_pack_d:'Взрывает два нижних ряда после проигрыша',
+    contLeft:'оплачено: {n}', profSupporter:'Меценат — поддержал игру',
     modeBlitz:'Блиц', modeMarathon:'Марафон', inlineDuelWord:'дуэль',
     refShare:'Играй со мной в БлокПоп! Собери 2048, вызывай на дуэли — а за то, что придёшь по моей ссылке, мы оба получим по 50 кристаллов!',
   },
@@ -576,6 +588,14 @@ var I18N = {
     storyBtn:'To story', storyText:'I scored {s} points in BlockPop! Can you beat me? Play:',
     storyDuelText:'I won a BlockPop duel with {s} points! Dare to challenge me?',
     player:'Player', undoDoneFree:'Move undone (undos left: {n})',
+    contBtn:'Continue — {n} ⭐', contHave:'Continue (paid)', paying:'Paying…',
+    payFail:'Payment did not go through. Nothing was charged.', contDone:'Back in! Bottom rows cleared',
+    starsHdr:'For Stars ⭐', starsBuy:'Buy · {n} ⭐', supporterT:'Supporter',
+    sk_aurora:'Aurora', sk_aurora_d:'Glowing aurora blocks. Everyone sees it in the rankings',
+    sk_prism:'Prism', sk_prism_d:'Faceted gemstones. Everyone sees it in the rankings',
+    badge_sup:'"Supporter" badge', badge_sup_d:'A heart next to your name in rankings and profile',
+    cont_pack:'Run continue', cont_pack_d:'Blows up the two bottom rows after a game over',
+    contLeft:'paid: {n}', profSupporter:'Supporter — backed the game',
     modeBlitz:'Blitz', modeMarathon:'Marathon', inlineDuelWord:'duel',
     refShare:'Play BlockPop with me! Reach 2048, fight duels — and since you came via my link, we both get 50 crystals!',
   }
@@ -857,7 +877,7 @@ var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = nul
 function startGame(){
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
-  scoreCounted = false; lsSet('bp_pending', '');
+  scoreCounted = false; contUsed = false; earnedThisRun = false; lsSet('bp_pending', '');
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
   var oe=$('overEarn'); if (oe){ oe.classList.add('hidden'); oe.textContent=''; }
   gameStartTs = Date.now();
@@ -1106,12 +1126,15 @@ function countAbandoned(){
   if (bumpBest(score)) haptic('rec');
   maybeClaimAch();
   submitScore(score);
-  wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
-    if (d && d.ok){
-      myBalance = d.balance; updateCrysUI(true);
-      if (d.gained > 0) showToast(IC_GEM + ' ' + t('earned', { n: d.gained, g: '', a: d.earnedToday, b: d.earnCap }));
-    }
-  });
+  if (!earnedThisRun){
+    earnedThisRun = true;
+    wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
+      if (d && d.ok){
+        myBalance = d.balance; updateCrysUI(true);
+        if (d.gained > 0) showToast(IC_GEM + ' ' + t('earned', { n: d.gained, g: '', a: d.earnedToday, b: d.earnCap }));
+      }
+    });
+  }
   setTimeout(function(){ checkQuests(true); }, 800);
 }
 // сворачивание/закрытие приложения: сохраняем счёт, чтобы засчитать его при следующем запуске
@@ -1152,7 +1175,9 @@ function gameOver(){
   maybeClaimAch();
   setTimeout(function(){ checkQuests(true); }, 1200);
   submitScore(score);
-  if (score > 0 && authPayload()){
+  // кристаллы начисляются за партию один раз — по счёту до покупки продолжения
+  if (score > 0 && authPayload() && !earnedThisRun){
+    earnedThisRun = true;
     var oe0 = $('overEarn');
     if (oe0){ oe0.innerHTML = '<span class="spinner"></span> ' + t('crediting'); oe0.classList.remove('hidden'); }
     wapi('/earn', { score: score, dur: Date.now() - gameStartTs, moves: dropsCount, maxCombo: runMaxCombo, maxTile: runMaxTile }, function(d){
@@ -1166,6 +1191,7 @@ function gameOver(){
   }
   updateHud();
   $('btnStory').classList.toggle('hidden', !canStory());
+  updateContBtn();
   setTimeout(function(){ show('scrOver'); }, 600);
 }
 
@@ -1224,6 +1250,8 @@ function drawBlock(x,y,v,scale,popped){
   var sk = previewSkin !== null ? previewSkin : activeSkin;
   if (sk === 'skin_neon'){ drawNeon(x,y,v,scale); return; }
   if (sk === 'skin_pixel'){ drawPixel(x,y,v,scale); return; }
+  if (sk === 'skin_aurora'){ drawAurora(x,y,v,scale); return; }
+  if (sk === 'skin_prism'){ drawPrism(x,y,v,scale); return; }
   var pad = cell*0.055, s = cell - pad*2;
   var cx = x+cell/2, cy = y+cell/2;
   var sc = scale || 1;
@@ -1276,6 +1304,94 @@ function drawBlock(x,y,v,scale,popped){
   ctx.lineJoin = 'round';
   ctx.strokeText(String(v), cx, y+pad+s*0.80);
   ctx.fillText(String(v), cx, y+pad+s*0.80);
+  ctx.restore();
+}
+// ---------- Премиум-стили (только за звёзды) ----------
+function drawAurora(x,y,v,scale){
+  var pad = cell*0.055, s = cell - pad*2, cx = x+cell/2, cy = y+cell/2, sc = scale || 1;
+  var cols = colorFor(v);
+  ctx.save();
+  ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy);
+  // мягкое свечение вокруг блока
+  ctx.shadowColor = cols[0]; ctx.shadowBlur = Math.max(8, s*0.30);
+  ctx.fillStyle = '#101a2e';
+  rr(x+pad, y+pad, s, s, s*0.26); ctx.fill();
+  ctx.shadowBlur = 0;
+  // северное сияние: диагональные полосы внутри блока
+  ctx.save();
+  rr(x+pad, y+pad, s, s, s*0.26); ctx.clip();
+  var g = ctx.createLinearGradient(x+pad, y+pad+s, x+pad+s, y+pad);
+  g.addColorStop(0, cols[2]); g.addColorStop(0.40, cols[1]); g.addColorStop(0.72, '#2fe6b0'); g.addColorStop(1, '#9a6bff');
+  ctx.fillStyle = g;
+  ctx.fillRect(x+pad, y+pad, s, s);
+  // затемнение к низу — блок не «выцветает»
+  var vg = ctx.createLinearGradient(0, y+pad, 0, y+pad+s);
+  vg.addColorStop(0, 'rgba(0,0,0,0)'); vg.addColorStop(1, 'rgba(6,10,26,.55)');
+  ctx.fillStyle = vg; ctx.fillRect(x+pad, y+pad, s, s);
+  ctx.globalAlpha = 0.20; ctx.fillStyle = '#eafff8';
+  for (var i = 0; i < 3; i++){
+    ctx.beginPath();
+    var o = s*(0.12 + i*0.28);
+    ctx.moveTo(x+pad, y+pad+o);
+    ctx.quadraticCurveTo(x+pad+s*0.5, y+pad+o-s*0.16, x+pad+s, y+pad+o-s*0.04);
+    ctx.lineTo(x+pad+s, y+pad+o+s*0.07);
+    ctx.quadraticCurveTo(x+pad+s*0.5, y+pad+o-s*0.05, x+pad, y+pad+o+s*0.11);
+    ctx.closePath(); ctx.fill();
+  }
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,.55)'; ctx.lineWidth = Math.max(1.5, s*0.035);
+  rr(x+pad, y+pad, s, s, s*0.26); ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.shadowColor = 'rgba(0,0,0,.55)'; ctx.shadowBlur = Math.max(3, s*0.10);
+  var fs = v>=1024 ? s*0.30 : v>=128 ? s*0.36 : s*0.44;
+  ctx.font = 'bold ' + fs + 'px "Arial Rounded MT Bold", Arial, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.fillText(String(v), cx, cy);
+  ctx.shadowBlur = 0;
+  ctx.restore();
+}
+function drawPrism(x,y,v,scale){
+  var pad = cell*0.055, s = cell - pad*2, cx = x+cell/2, cy = y+cell/2, sc = scale || 1;
+  var cols = colorFor(v);
+  ctx.save();
+  ctx.translate(cx,cy); ctx.scale(sc,sc); ctx.translate(-cx,-cy);
+  ctx.fillStyle = 'rgba(0,0,0,.25)';
+  rr(x+pad, y+pad+s*0.06, s, s, s*0.14); ctx.fill();
+  var L = x+pad, T = y+pad, R = x+pad+s, B = y+pad+s;
+  // огранка: четыре грани к центру, каждая своей яркости
+  function facet(p, col){
+    ctx.beginPath(); ctx.moveTo(p[0],p[1]); ctx.lineTo(p[2],p[3]); ctx.lineTo(cx,cy); ctx.closePath();
+    ctx.fillStyle = col; ctx.fill();
+  }
+  ctx.save();
+  rr(L, T, s, s, s*0.14); ctx.clip();
+  facet([L,T,R,T], cols[0]);
+  facet([R,T,R,B], cols[1]);
+  facet([R,B,L,B], cols[2]);
+  facet([L,B,L,T], cols[1]);
+  // светлая сердцевина и блик
+  ctx.globalAlpha = 0.45; ctx.fillStyle = '#fff';
+  ctx.beginPath(); ctx.moveTo(cx, cy-s*0.22); ctx.lineTo(cx+s*0.20, cy); ctx.lineTo(cx, cy+s*0.22); ctx.lineTo(cx-s*0.20, cy);
+  ctx.closePath(); ctx.fill();
+  ctx.globalAlpha = 0.55;
+  ctx.beginPath(); ctx.moveTo(L+s*0.12, T+s*0.10); ctx.lineTo(L+s*0.42, T+s*0.10); ctx.lineTo(L+s*0.20, T+s*0.34);
+  ctx.closePath(); ctx.fill();
+  ctx.restore();
+  ctx.globalAlpha = 1;
+  ctx.strokeStyle = 'rgba(255,255,255,.75)'; ctx.lineWidth = Math.max(1.4, s*0.03);
+  rr(L, T, s, s, s*0.14); ctx.stroke();
+  ctx.strokeStyle = 'rgba(255,255,255,.35)'; ctx.lineWidth = Math.max(1, s*0.02);
+  ctx.beginPath();
+  ctx.moveTo(L,T); ctx.lineTo(cx,cy); ctx.moveTo(R,T); ctx.lineTo(cx,cy);
+  ctx.moveTo(R,B); ctx.lineTo(cx,cy); ctx.moveTo(L,B); ctx.lineTo(cx,cy);
+  ctx.stroke();
+  ctx.fillStyle = '#fff';
+  ctx.strokeStyle = 'rgba(0,0,0,.45)'; ctx.lineWidth = Math.max(2, s*0.06); ctx.lineJoin = 'round';
+  var fs = v>=1024 ? s*0.28 : v>=128 ? s*0.34 : s*0.42;
+  ctx.font = 'bold ' + fs + 'px "Arial Rounded MT Bold", Arial, sans-serif';
+  ctx.textAlign='center'; ctx.textBaseline='middle';
+  ctx.strokeText(String(v), cx, cy); ctx.fillText(String(v), cx, cy);
   ctx.restore();
 }
 function drawNeon(x,y,v,scale){
@@ -1378,6 +1494,7 @@ function openProfile(uid, backId){
     $('profStyle').textContent = t('profStyle', { s: skinLabel(d.skin, d.ftheme) });
     var lines = [];
     if (d.crowned) lines.push('<b style="color:#ffe14d">' + t('profChampion') + '</b>');
+    if (d.supporter) lines.push('<svg class="ic"><use href="#i-heart"/></svg> <b style="color:#ff8aa3">' + t('profSupporter') + '</b>');
     lines.push(t('profSeason', { n: d.seasonGems, g: IC_GEM, w: d.seasonWins }));
     lines.push(t('profDuels', { n: d.duelWins }));
     if (d.dailyStreak > 0) lines.push('<svg class="ic"><use href="#i-fire"/></svg> ' + t('profStreakL', { n: d.dailyStreak }));
@@ -1941,6 +2058,7 @@ function renderDaily(){
       rk.className = 'rk' + (i === 0 ? ' gold' : i === 1 ? ' silv' : i === 2 ? ' brnz' : '');
       rk.textContent = i + 1;
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || t('player');
+      if (r.sup) nm.insertAdjacentHTML('beforeend', ' <svg class="ic"><use href="#i-heart"/></svg>');
       var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm'; gm.textContent = r.score;
       div.appendChild(rk); div.appendChild(nm); if (fl) div.appendChild(fl); div.appendChild(gm);
@@ -2045,6 +2163,7 @@ function renderTour(){
       rk.className = 'rk' + (v.status === 'done' && i === 0 && r.played ? ' gold' : '');
       rk.textContent = r.played ? (i + 1) : '…';
       var nm = document.createElement('span'); nm.className = 'nm'; nm.textContent = r.name || t('player');
+      if (r.sup) nm.insertAdjacentHTML('beforeend', ' <svg class="ic"><use href="#i-heart"/></svg>');
       var fl = makeFlair(r.skin);
       var gm = document.createElement('span'); gm.className = 'gm';
       if (v.status === 'done' && r.prize) gm.innerHTML = r.score + ' (+' + r.prize + ' ' + IC_GEM + ')';
@@ -2206,6 +2325,57 @@ function renderShop(){
       btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
       if (shopState.balance < it.cost) btn.disabled = true;
       btn.onclick = function(){ shopBuy(id, btn); };
+    }
+    card.appendChild(cv2); card.appendChild(sn); card.appendChild(btn);
+    list.appendChild(card);
+  });
+  renderStarsSection(list);
+}
+// товары за звёзды: премиум-стили, значок и продолжения партии
+function renderStarsSection(list){
+  if (!shopState || !shopState.starsCatalog || !starsOk()) return;
+  var meta = {
+    skin_aurora:     ['sk_aurora', 'sk_aurora_d', 'skin'],
+    skin_prism:      ['sk_prism', 'sk_prism_d', 'skin'],
+    badge_supporter: ['badge_sup', 'badge_sup_d', 'badge'],
+    continue1:       ['cont_pack', 'cont_pack_d', 'pack'],
+  };
+  var hdr = document.createElement('div');
+  hdr.className = 'best';
+  hdr.style.cssText = 'font-weight:bold;margin-top:6px';
+  hdr.innerHTML = t('starsHdr');
+  list.appendChild(hdr);
+  ['skin_aurora', 'skin_prism', 'badge_supporter', 'continue1'].forEach(function(id){
+    var it = shopState.starsCatalog[id]; if (!it) return;
+    var m = meta[id];
+    var owned = !!shopState.owned[id];
+    var eq = m[2] === 'skin' && (shopState.equipped.skin || '') === id;
+    var card = document.createElement('div');
+    card.className = 'shopcard' + (eq ? ' eq' : '');
+    var cv2 = document.createElement('canvas'); cv2.width = 52; cv2.height = 52;
+    if (m[2] === 'skin') drawSkinPreview(cv2, id, 128);
+    else {
+      var c3 = cv2.getContext('2d');
+      c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0, 0, 52, 52);
+      c3.fillStyle = id === 'badge_supporter' ? '#ff6b8a' : '#ffd54f';
+      c3.font = 'bold 28px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle';
+      c3.fillText(id === 'badge_supporter' ? '♥' : '★', 26, 28);
+    }
+    var sn = document.createElement('div'); sn.className = 'sn';
+    var extra = id === 'continue1' && shopState.contCredits > 0 ? ' · ' + t('contLeft', { n: shopState.contCredits }) : '';
+    sn.innerHTML = '<b>' + t(m[0]) + '</b><small>' + t(m[1]) + extra + '</small>';
+    var btn = document.createElement('button'); btn.className = 'sbtn';
+    if (eq){
+      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
+      btn.onclick = function(){ shopEquip('skin', '', btn); };
+    } else if (owned && m[2] === 'skin'){
+      btn.textContent = t('equipBtn');
+      btn.onclick = function(){ shopEquip('skin', id, btn); };
+    } else if (owned && m[2] === 'badge'){
+      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
+    } else {
+      btn.innerHTML = t('starsBuy', { n: it.stars });
+      btn.onclick = function(){ starsBuy(id, btn); };
     }
     card.appendChild(cv2); card.appendChild(sn); card.appendChild(btn);
     list.appendChild(card);
@@ -2409,6 +2579,7 @@ function renderTop(){
       if (topData.prevTop3 && topData.prevTop3.indexOf(r.user_id) >= 0){
         nm.insertAdjacentHTML('afterbegin', '<svg class="ic"><use href="#i-crown"/></svg> ');
       }
+      if (r.sup) nm.insertAdjacentHTML('beforeend', ' <svg class="ic"><use href="#i-heart"/></svg>');
       var fl = makeFlair(r.skin);
       var wn = document.createElement('span'); wn.className = 'wn';
       wn.textContent = t('wins', { n: r.wins });
@@ -2474,6 +2645,93 @@ function myRefLink(){
   var myId = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.id;
   return myId ? 'https://t.me/BlockPopGameBot/play?startapp=ref_' + myId : TG_BOT_URL;
 }
+// ---------- Покупки за звёзды ⭐ ----------
+var myContCredits = 0, contUsed = false, earnedThisRun = false, contBusy = false;
+var IC_STAR = '<svg class="ic"><use href="#i-star"/></svg>';
+function starsOk(){ return !!(tg && tg.openInvoice && tgVer('6.1')); }
+// открывает окно оплаты Telegram; cb(true) только если платёж прошёл
+function payFor(item, cb){
+  if (!starsOk()){ cb(false, 'unsupported'); return; }
+  wapi('/pay/invoice', { item: item }, function(d){
+    if (!d || !d.ok || !d.link){ cb(false, (d && d.error) || 'net'); return; }
+    try { tg.openInvoice(d.link, function(status){ cb(status === 'paid', status); }); }
+    catch(e){ cb(false, 'error'); }
+  });
+}
+function updateContBtn(){
+  var b = $('btnContinue'); if (!b) return;
+  var can = !duelActive && !contUsed && (starsOk() || myContCredits > 0);
+  b.classList.toggle('hidden', !can);
+  b.innerHTML = '<svg class="ic"><use href="#i-star"/></svg>' +
+    (myContCredits > 0 ? t('contHave') : t('contBtn', { n: 25 }));
+}
+// два нижних ряда взрываются, партия продолжается с текущим счётом
+function doContinue(){
+  contUsed = true; scoreCounted = false;
+  hide('scrOver');
+  for (var c = 0; c < COLS; c++) for (var r = 0; r < 2; r++){
+    var b = grid[c][r]; if (!b) continue;
+    grid[c][r] = null;
+    var i = blocks.indexOf(b); if (i >= 0) blocks.splice(i, 1);
+    burst(cellX(c) + cell/2, b.y + cell/2, colorFor(b.v > 0 ? b.v : 2)[1], 12);
+  }
+  applyGravity();
+  shakeT = 12; sfxBoom(); haptic('boom');
+  if (!curBlock) spawnCur();
+  state = 'aim';
+  updateHud(); syncMusic();
+  showToast(IC_STAR + ' ' + t('contDone'));
+}
+function tryContinue(){
+  var btn = $('btnContinue'); if (!btn || contBusy || contUsed) return;
+  sfxClick(); contBusy = true;
+  var old = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + t('paying');
+  function restore(msg){
+    contBusy = false; btn.disabled = false; btn.innerHTML = old;
+    if (msg) showToast(msg);
+  }
+  // списываем оплаченное продолжение; вебхук о платеже может немного опоздать — ждём его
+  function spend(tries){
+    wapi('/spend', { what: 'continue' }, function(d){
+      if (d && d.ok){ myContCredits = d.contCredits || 0; contBusy = false; doContinue(); return; }
+      if (tries > 0){ setTimeout(function(){ spend(tries - 1); }, 1000); return; }
+      restore(t('payFail'));
+    });
+  }
+  if (myContCredits > 0){ spend(1); return; }
+  payFor('continue1', function(ok, status){
+    if (!ok){ restore(status === 'cancelled' || status === 'failed' ? '' : t('payFail')); return; }
+    spend(8);
+  });
+}
+$('btnContinue').addEventListener('click', tryContinue);
+function starsBuy(item, btn){
+  var old = btn.innerHTML;
+  btn.disabled = true; btn.innerHTML = '<span class="spinner"></span> ' + t('paying');
+  payFor(item, function(ok, status){
+    if (!ok){
+      btn.disabled = false; btn.innerHTML = old;
+      if (status !== 'cancelled' && status !== 'failed') showToast(t('payFail'));
+      return;
+    }
+    // товар выдаёт вебхук — перечитываем состояние магазина с небольшим ожиданием
+    var tries = 8;
+    (function poll(){
+      wapi('/shop/state', null, function(d){
+        if (d && d.ok && (d.owned[item] || (item === 'continue1' && d.contCredits > 0))){
+          shopState = d; myContCredits = d.contCredits || 0;
+          sfxCombo(3); haptic('rec'); showToast(IC_STAR + ' ' + t('bought'));
+          renderShop(); refreshMe(); return;
+        }
+        if (--tries > 0){ setTimeout(poll, 1000); return; }
+        btn.disabled = false; btn.innerHTML = old;
+        showToast(t('payFail'));
+      });
+    })();
+  });
+}
+
 // ---------- Сторис ----------
 var STORY_IMG = 'https://dizend.github.io/blockpop-telegram/story.png';
 function canStory(){
@@ -2553,6 +2811,7 @@ function applyLang(){
   setBtn('btnTourMenu', 'home', 'toMenu', ' ');
   setBtn('btnDuelRematch', 'duel', 'rematch');
   setBtn('btnStory', 'story', 'storyBtn');
+  updateContBtn();
   setBtn('btnDuelStory', 'story', 'storyBtn');
   setBtn('btnDuelMenu', 'home', 'toMenu', ' ');
   setBtn('btnShop', 'cart', 'shop');
