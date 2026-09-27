@@ -36,6 +36,8 @@
   .shopcard .sbtn.lock { background:rgba(255,255,255,.10); box-shadow:none; opacity:.75; }
   .shopcard .sbtn:disabled { opacity:.55; }
   .shopcard .sbtn.need { background:rgba(255,255,255,.10); box-shadow:none; color:#ffc9c9; border:2px dashed rgba(255,157,157,.45); opacity:1; }
+  .shopcard .newtag { font-size:10px; font-weight:bold; letter-spacing:.5px; text-transform:uppercase;
+    color:#18102d; background:#ffe14d; border-radius:6px; padding:1px 5px; vertical-align:2px; margin-left:5px; }
   .shopcard .sn small.lack { color:#ff9d9d; font-size:11px; opacity:.95; }
   body.light .shopcard .sn small.lack { color:#c2453f; }
   body.light .shopcard .sbtn.need { background:rgba(46,33,84,.05); color:#c2453f; border-color:rgba(194,69,63,.45); }
@@ -138,7 +140,7 @@
   body.light #userHello { color:#8b7cc2; }
   body.light .toast { background:linear-gradient(180deg,#fff,#f0e9ff); color:#2e2154; border-color:rgba(224,168,0,.6); }
   body.light .newrec { color:#c68400; }
-  body.light #dailyBadge { border-color:#f6f1ff !important; }
+  body.light #dailyBadge, body.light #shopBadge { border-color:#f6f1ff !important; }
   .toptabs { display:flex; gap:8px; }
   .toptab { border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#b7a8e8; border-radius:14px; padding:8px 18px; font-size:15px; font-weight:bold; cursor:pointer; font-family:inherit; }
   .toptab.on { color:#fff; border-color:#ffe14d; background:rgba(255,225,77,.12); }
@@ -214,7 +216,7 @@
     <button class="mtile t-or hidden" id="btnDaily" style="position:relative"><svg class="ic"><use href="#i-cal"/></svg>Вызов дня<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
     <button class="mtile t-rd hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
     <button class="mtile t-bl hidden" id="btnTop"><svg class="ic"><use href="#i-trophy"/></svg>Топ сезона</button>
-    <button class="mtile t-pu hidden" id="btnShop"><svg class="ic"><use href="#i-cart"/></svg>Магазин</button>
+    <button class="mtile t-pu hidden" id="btnShop" style="position:relative"><svg class="ic"><use href="#i-cart"/></svg>Магазин<span id="shopBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
     <button class="mtile t-gr hidden" id="btnTour" style="grid-column:span 2"><svg class="ic"><use href="#i-arena"/></svg>Турнир</button>
   </div>
   <button class="btn ghost slim hidden" id="btnInvite"><svg class="ic"><use href="#i-invite"/></svg> Пригласить друзей</button>
@@ -435,6 +437,9 @@ function refreshMe(){
       if (d.notify !== undefined){ myNotify = d.notify; updNotifTgl(); }
       if (d.skin !== undefined){ applyEquipped(d.skin, d.ftheme); undoCredits = d.undoCredits || 0; }
       if (d.contCredits !== undefined) myContCredits = d.contCredits;
+      if (d.shopNew !== undefined){
+        var sb = $('shopBadge'); if (sb) sb.classList.toggle('hidden', !(d.shopNew > 0));
+      }
       if (d.refs){ myRefs = d.refs; updateRefInfo(); }
     }
     updateCrysUI(true);
@@ -563,7 +568,7 @@ var I18N = {
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
     duelPickText:'Выбери длительность — дальше отправишь карточку в любой чат, и первые двое станут дуэлянтами.',
     resumeBtn:'Продолжить партию · {n}', resumeDone:'Партия восстановлена — играем дальше!',
-    evHdr:'Правило недели', evToast:'Правило недели: {n}', wait:'…',
+    evHdr:'Правило недели', evToast:'Правило недели: {n}', wait:'…', newItem:'новинка',
     modeClassic:'Классика', dropsN:'{n} бросков',
     inlineBlitz:'блиц', inlineClassic:'классика', inlineMarathon:'марафон', inlineTourWord:'турнир',
     tourHint:'Турнир создаётся карточкой в чате: набери @BlockPopGameBot в любом чате и выбери «Турнир».',
@@ -658,7 +663,7 @@ var I18N = {
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
     duelPickText:'Pick the length — then send the card to any chat, and the first two players become the duelists.',
     resumeBtn:'Resume run · {n}', resumeDone:'Run restored — keep playing!',
-    evHdr:'Rule of the week', evToast:'Rule of the week: {n}', wait:'…',
+    evHdr:'Rule of the week', evToast:'Rule of the week: {n}', wait:'…', newItem:'new',
     modeClassic:'Classic', dropsN:'{n} drops',
     inlineBlitz:'blitz', inlineClassic:'classic', inlineMarathon:'marathon', inlineTourWord:'tournament',
     tourHint:'A tournament starts as a card in a chat: type @BlockPopGameBot in any chat and pick "Tournament".',
@@ -2563,6 +2568,9 @@ function shopItemMeta(id){
   };
   return map[id] || [id, ''];
 }
+function newTag(id){
+  return shopNewIds.indexOf(id) >= 0 ? ' <span class="newtag">' + t('newItem') + '</span>' : '';
+}
 function renderShop(){
   var list = $('shopList');
   $('shopTitle').textContent = t('shop');
@@ -2611,7 +2619,7 @@ function renderShop(){
     var extra = id === 'undo10' && shopState.undoCredits > 0 ? ' · ' + t('undoLeft', { n: shopState.undoCredits }) : '';
     if (isDefault) extra += ' · ' + t('freeItem');
     var lack = (!owned && !isDefault && !it.ach && it.cost > 0 && shopState.balance < it.cost) ? it.cost - shopState.balance : 0;
-    sn.innerHTML = '<b>' + t(nameKey) + '</b><small>' + t(descKey) + extra + '</small>' +
+    sn.innerHTML = '<b>' + t(nameKey) + newTag(id) + '</b><small>' + t(descKey) + extra + '</small>' +
       (lack ? '<small class="lack">' + t('needGems', { n: lack }) + ' ' + IC_GEM + '</small>' : '');
     var btn = document.createElement('button'); btn.className = 'sbtn';
     if (it.kind === 'pack'){
@@ -2690,7 +2698,7 @@ function renderStarsSection(list){
     }
     var sn = document.createElement('div'); sn.className = 'sn';
     var extra = m[2] === 'pack' && shopState.contCredits > 0 ? ' · ' + t('contLeft', { n: shopState.contCredits }) : '';
-    sn.innerHTML = '<b>' + t(m[0]) + '</b><small>' + t(m[1]) + extra + '</small>';
+    sn.innerHTML = '<b>' + t(m[0]) + newTag(id) + '</b><small>' + t(m[1]) + extra + '</small>';
     var btn = document.createElement('button'); btn.className = 'sbtn';
     if (eq){
       btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
@@ -2712,7 +2720,11 @@ function openShop(){
   hide('scrMenu'); show('scrShop'); state = 'menu';
   shopState = null; renderShop();
   wapi('/shop/state', null, function(d){
-    if (d && d.ok) shopState = d;
+    if (d && d.ok){
+      shopState = d;
+      shopNewIds = d.newIds || [];              // сервер уже отметил магазин просмотренным
+      var sb = $('shopBadge'); if (sb) sb.classList.add('hidden');
+    }
     renderShop();
   });
 }
@@ -2973,6 +2985,7 @@ function myRefLink(){
 }
 // ---------- Покупки за звёзды ⭐ ----------
 var myContCredits = 0, contUsed = false, earnedThisRun = false, contBusy = false;
+var shopNewIds = [];   // товары, появившиеся после прошлого захода игрока в магазин
 var IC_STAR = '<svg class="ic"><use href="#i-star"/></svg>';
 function starsOk(){ return !!(tg && tg.openInvoice && tgVer('6.1')); }
 // открывает окно оплаты Telegram; cb(true) только если платёж прошёл
@@ -3140,7 +3153,9 @@ function applyLang(){
   updateContBtn();
   setBtn('btnDuelStory', 'story', 'storyBtn');
   setBtn('btnDuelMenu', 'home', 'toMenu', ' ');
-  setBtn('btnShop', 'cart', 'shop');
+  var shopHadBadge = $('shopBadge') && !$('shopBadge').classList.contains('hidden');
+  $('btnShop').innerHTML = '<svg class="ic"><use href="#i-cart"/></svg>' + t('shop') +
+    '<span id="shopBadge" class="' + (shopHadBadge ? '' : 'hidden') + '" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span>';
   var tt2 = $('btnTour'); if (tt2) tt2.innerHTML = '<svg class="ic"><use href="#i-arena"/></svg>' + t('tourTitle');
   if (!$('scrDuelPick').classList.contains('hidden')) applyDuelPickTexts();
   setBtn('btnShopClose', 'home', 'toMenu', ' ');
