@@ -205,6 +205,7 @@
   <div class="best" id="menuBest">Рекорд: 0</div>
   <div class="pill" id="crysPill" style="display:none"><div class="lbl">Кристаллы</div><div class="val" id="crysVal"><svg class="ic"><use href="#i-gem"/></svg> —</div></div>
   <button class="btn green" id="btnPlay"><svg class="ic"><use href="#i-play"/></svg>Играть</button>
+  <button class="btn blue hidden" id="btnResumeRun"><svg class="ic"><use href="#i-play"/></svg>Продолжить партию</button>
   <button class="btn blue slim hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
   <div class="best hidden" id="bonusMsg"></div>
   <div class="menugrid">
@@ -255,6 +256,7 @@
 <div id="scrDaily" class="screen hidden">
   <div class="logo" style="font-size:min(9vw,34px)"><svg class="ic"><use href="#i-cal"/></svg> Вызов дня</div>
   <div class="best hidden" id="dailyStreak" style="font-weight:bold;color:#ff9d4d"></div>
+  <div class="best hidden" id="dailyEvent" style="font-weight:bold;color:#7ef7d4"></div>
   <div class="sub" id="dailyInfo"></div>
   <div class="bigscore hidden" id="dailyBig">0</div>
   <div class="best hidden" id="dailyMy"></div>
@@ -558,6 +560,8 @@ var I18N = {
     cont_pack5:'Продолжения ×5', cont_pack5_d:'Пять продолжений про запас — выгоднее поштучных',
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
     duelPickText:'Выбери длительность — дальше отправишь карточку в любой чат, и первые двое станут дуэлянтами.',
+    resumeBtn:'Продолжить партию · {n}', resumeDone:'Партия восстановлена — играем дальше!',
+    evHdr:'Правило недели', evToast:'Правило недели: {n}',
     modeClassic:'Классика', dropsN:'{n} бросков',
     inlineBlitz:'блиц', inlineClassic:'классика', inlineMarathon:'марафон', inlineTourWord:'турнир',
     tourHint:'Турнир создаётся карточкой в чате: набери @BlockPopGameBot в любом чате и выбери «Турнир».',
@@ -651,6 +655,8 @@ var I18N = {
     cont_pack5:'Continues ×5', cont_pack5_d:'Five continues in stock — cheaper than one by one',
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
     duelPickText:'Pick the length — then send the card to any chat, and the first two players become the duelists.',
+    resumeBtn:'Resume run · {n}', resumeDone:'Run restored — keep playing!',
+    evHdr:'Rule of the week', evToast:'Rule of the week: {n}',
     modeClassic:'Classic', dropsN:'{n} drops',
     inlineBlitz:'blitz', inlineClassic:'classic', inlineMarathon:'marathon', inlineTourWord:'tournament',
     tourHint:'A tournament starts as a card in a chat: type @BlockPopGameBot in any chat and pick "Tournament".',
@@ -901,9 +907,14 @@ function rndNext(){
   if (duelActive){
     // детерминированная «колода»: блок №i одинаков для обоих дуэлянтов
     var r = mulberry32((duelSeedVal ^ Math.imul(duelIdx, 0x9E3779B1)) >>> 0)();
-    duelIdx++;
+    var idx = duelIdx++;
+    var ev = evId();
+    if (ev === 'joker' && idx % 10 === 9) return JOKER;   // позиции особых блоков заданы номером,
+    if (ev === 'bomb' && idx % 12 === 11) return BOMB;    // значит одинаковы у всех игроков
     var dp = DUEL_POOL;
-    return dp[Math.floor(r * dp.length)];
+    var v = dp[Math.floor(r * dp.length)];
+    if (ev === 'high' && v === 2) v = 4;
+    return v;
   }
   // особые блоки — только в обычном режиме
   var sr = Math.random();
@@ -921,6 +932,9 @@ function mulberry32(a){
 }
 // ---------- Дуэль: состояние ----------
 var DUEL_POOL = [2,2,2,4,4,8,8,16];
+// правило недели действует только в вызове дня и одинаково у всех игроков
+var weekEv = null, evMult = 1;
+function evId(){ return (duelKind === 'daily' && weekEv) ? weekEv.id : ''; }
 var DUEL_DROPS_C = 40;
 var duelDropsLimit = 40; // длительность текущего раунда: дуэль 20/40/80, вызов дня и турнир всегда 40
 var duelActive = false, duelKind = 'duel', duelSeedVal = 0, duelIdx = 0, duelViewCache = null;
@@ -940,9 +954,10 @@ var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = nul
 
 // ---------- Запуск игры ----------
 function startGame(){
+  if (duelKind !== 'daily') evMult = 1;   // правило недели действует только в вызове дня
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
-  scoreCounted = false; contUsed = false; earnedThisRun = false; lsSet('bp_pending', '');
+  scoreCounted = false; contUsed = false; earnedThisRun = false; lsSet('bp_pending', ''); clearRun();
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
   var oe=$('overEarn'); if (oe){ oe.classList.add('hidden'); oe.textContent=''; }
   gameStartTs = Date.now();
@@ -1069,7 +1084,7 @@ function doMerge(group){
   combo++;
   if (newV > runMaxTile) runMaxTile = newV;
   if (combo > runMaxCombo) runMaxCombo = combo;
-  var gained = newV * combo;
+  var gained = newV * combo * evMult;   // «двойные очки» — правило недели в вызове дня
   score += gained;
   // убрать остальных
   for (var j=0;j<group.length;j++){
@@ -1101,7 +1116,7 @@ function checkMilestone(v){
         boomed++;
       }
     }
-    if (boomed>0){ score += boomed*thr*2; }
+    if (boomed>0){ score += boomed*thr*2*evMult; }
     bannerTxt = t('boom', { n: v }); bannerT = 90; shakeT = 14; flashT = 9;
     sfxBoom(); haptic('boom');
     // младшие блоки уходят и из очереди выдачи (в дуэли колода фиксирована)
@@ -1132,7 +1147,7 @@ function bombExplode(b){
   burst(cellX(col)+cell/2, b.y+cell/2, '#ffb300', 16);
   var below = row > 0 ? grid[col][row-1] : null;
   if (below){
-    var gained = Math.max(10, below.v > 0 ? below.v : 10);
+    var gained = Math.max(10, below.v > 0 ? below.v : 10) * evMult;
     score += gained;
     floaters.push({ x: cellX(col)+cell/2, y: below.y, txt: '+' + gained, t: 0, col: '#ffb300' });
     grid[col][row-1] = null;
@@ -1187,7 +1202,7 @@ function gameIsLive(){ return state==='aim' || state==='drop' || state==='resolv
 function countAbandoned(){
   if (duelActive || scoreCounted || score <= 0 || !gameIsLive()) return;
   scoreCounted = true;
-  lsSet('bp_pending', '');
+  lsSet('bp_pending', ''); clearRun();
   if (bumpBest(score)) haptic('rec');
   maybeClaimAch();
   submitScore(score);
@@ -1207,6 +1222,58 @@ function savePending(){
   if (duelActive || scoreCounted || score <= 0 || !gameIsLive()) return;
   try { lsSet('bp_pending', JSON.stringify({ s: score, d: Date.now() - gameStartTs, m: dropsCount, mc: runMaxCombo, mt: runMaxTile })); } catch(e){}
 }
+// ---------- Сохранение партии между запусками ----------
+// bp_run — полное состояние обычной партии; bp_pending — данные для начисления,
+// если игрок решит не возвращаться. Одно из двух обязательно закрывает партию.
+function saveRun(){
+  if (duelActive || scoreCounted || !gameIsLive() || score <= 0) return;
+  try {
+    var g = [];
+    for (var c = 0; c < COLS; c++){ g[c] = []; for (var r = 0; r < ROWS; r++) g[c][r] = grid[c][r] ? grid[c][r].v : 0; }
+    lsSet('bp_run', JSON.stringify({
+      g: g, score: score, curV: curBlock ? curBlock.v : null, nextQ: nextQ.slice(),
+      drops: dropsCount, skipCd: skipCooldown, mt: runMaxTile, mc: runMaxCombo,
+      el: Date.now() - gameStartTs,
+      ms: { 512: milestones[512]||0, 1024: milestones[1024]||0, 2048: milestones[2048]||0, 4096: milestones[4096]||0 },
+      ts: Date.now(),
+    }));
+  } catch(e){}
+}
+function hasSavedRun(){
+  var raw = lsGet('bp_run'); if (!raw) return null;
+  var r = null; try { r = JSON.parse(raw); } catch(e){}
+  return (r && r.g && r.score > 0) ? r : null;
+}
+function clearRun(){ lsSet('bp_run', ''); }
+function resumeRun(){
+  var r = hasSavedRun(); if (!r) return false;
+  clearRun(); lsSet('bp_pending', '');          // партия продолжается — засчитаем её в конце
+  hide('scrMenu');
+  newGrid(); blocks = []; particles = []; floaters = []; dropB = null;
+  for (var c = 0; c < COLS; c++) for (var rr2 = 0; rr2 < ROWS; rr2++){
+    if (!r.g[c][rr2]) continue;
+    var b = { id: uid++, v: r.g[c][rr2], col: c, row: rr2, y: cellY(rr2), targetY: cellY(rr2), scale: 1, pop: 0, tick: ++moveTick };
+    grid[c][rr2] = b; blocks.push(b);
+  }
+  score = r.score; combo = 0; dropsCount = r.drops || 0; skipCooldown = r.skipCd || 0;
+  runMaxTile = r.mt || 0; runMaxCombo = r.mc || 0;
+  milestones = {}; for (var k in r.ms) if (r.ms[k]) milestones[k] = 1;
+  nextQ = (r.nextQ && r.nextQ.length) ? r.nextQ.slice() : [rndNext(), rndNext()];
+  curBlock = { v: r.curV != null ? r.curV : nextQ.shift(), col: 2, x: cellX(2) + cell/2 };
+  if (nextQ.length < 2) nextQ.push(rndNext());
+  gameStartTs = Date.now() - (r.el || 0);       // длительность партии не обнуляется
+  scoreCounted = false; contUsed = false; earnedThisRun = false;
+  undoSnap = null; tutActive = false;
+  state = 'aim'; updateSkipBtn(); updateHud(); syncMusic();
+  showToast('<svg class="ic"><use href="#i-play"/></svg> ' + t('resumeDone'));
+  return true;
+}
+function updateResumeBtn(){
+  var b = $('btnResumeRun'); if (!b) return;
+  var r = hasSavedRun();
+  b.classList.toggle('hidden', !r);
+  if (r) b.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('resumeBtn', { n: r.score });
+}
 function flushPending(){
   var raw = lsGet('bp_pending'); if (!raw) return;
   lsSet('bp_pending', '');
@@ -1221,16 +1288,17 @@ function flushPending(){
   });
 }
 document.addEventListener('visibilitychange', function(){
+  if (document.hidden) saveRun();
   // очищает запись только тот, кто партию засчитал (countAbandoned/gameOver/startGame):
   // сброс на «показали снова» гасил бы её раньше, чем flushPending успеет прочитать
   if (document.hidden) savePending();
 });
-window.addEventListener('pagehide', savePending); // iOS/WebView: закрытие мини-аппа
+window.addEventListener('pagehide', function(){ saveRun(); savePending(); }); // iOS/WebView: закрытие мини-аппа
 
 function gameOver(){
   state='over'; musicStop();
   sfxOver(); haptic('over');
-  scoreCounted = true; lsSet('bp_pending', '');
+  scoreCounted = true; lsSet('bp_pending', ''); clearRun();
   var isRec = score > best;
   if (isRec){ best = score; storeSet('bp_best', best); haptic('rec'); }
   $('overScore').textContent = score;
@@ -1906,6 +1974,7 @@ function openMenu(){
   hide('scrDuel'); hide('scrDaily'); hide('scrTop'); hide('scrTour'); hide('scrShop'); hide('scrProfile'); hide('scrDuelPick');
   checkDailyBadge();
   $('menuBest').textContent = t('bestN', { n: best });
+  updateResumeBtn();
   var bm=$('bonusMsg'); if (bm) bm.classList.add('hidden');
   refreshMe();
   show('scrMenu'); hide('scrPause'); hide('scrOver');
@@ -1961,7 +2030,8 @@ window.addEventListener('keydown', function(e){
 });
 
 // ---------- Кнопки ----------
-$('btnPlay').addEventListener('click', function(){ audio(); sfxClick(); hide('scrMenu'); startGame(); });
+$('btnPlay').addEventListener('click', function(){ audio(); sfxClick(); flushPending(); clearRun(); hide('scrMenu'); startGame(); });
+$('btnResumeRun').addEventListener('click', function(){ audio(); sfxClick(); resumeRun(); });
 $('btnPause').addEventListener('click', function(){ sfxClick(); if(state==='pause') doResume(); else doPause(); });
 $('btnResume').addEventListener('click', function(){ sfxClick(); doResume(); });
 $('btnRestart1').addEventListener('click', function(){ if (duelActive) return; sfxClick(); countAbandoned(); hide('scrPause'); startGame(); });
@@ -2117,9 +2187,9 @@ function renderDuelDone(view){
 }
 function duelFinish(){
   state='over'; musicStop();
-  duelActive = false;
+  duelActive = false; evMult = 1;
   sfxLand();
-  scoreCounted = true; lsSet('bp_pending', '');
+  scoreCounted = true; lsSet('bp_pending', ''); clearRun();
   if (bumpBest(score)) haptic('rec'); // счёт в дуэли/вызове/турнире тоже обновляет личный рекорд
   maybeClaimAch();
   setTimeout(function(){ checkQuests(true); }, 1500);
@@ -2213,6 +2283,14 @@ function renderDaily(){
   }
   var left = Math.max(0, d.endsAt - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
+  var evb = $('dailyEvent');
+  if (evb){
+    if (d.event){
+      evb.innerHTML = '<svg class="ic"><use href="#i-star"/></svg> ' + t('evHdr') + ': <b>' +
+        (LANG === 'en' ? d.event.en : d.event.ru) + '</b> — ' + (LANG === 'en' ? d.event.dEn : d.event.dRu);
+      evb.classList.remove('hidden');
+    } else evb.classList.add('hidden');
+  }
   var stk = $('dailyStreak');
   if (stk){
     if (d.myStreak >= 1){
@@ -2264,16 +2342,22 @@ function openDaily(){
   checkQuests(false);
   wapi('/daily/state', null, function(d){
     dailyState = (d && d.ok) ? d : { played:false, tries:2, triesMax:2, top:[], players:0, endsAt:Date.now(), myId:0 };
+    if (dailyState.event) weekEv = dailyState.event;
     renderDaily(); updateDailyBadge();
   });
 }
 function checkDailyBadge(){
   if (!tg || !authPayload()) return;
-  wapi('/daily/state', null, function(d){ if (d && d.ok){ dailyState = d; updateDailyBadge(); } });
+  wapi('/daily/state', null, function(d){ if (d && d.ok){ dailyState = d; if (d.event) weekEv = d.event; updateDailyBadge(); } });
 }
-function startDailyRound(seed){
+function startDailyRound(seed, ev){
   duelActive = true; duelKind = 'daily';
   duelDropsLimit = 40;
+  if (ev) weekEv = ev;
+  evMult = (weekEv && weekEv.mult) ? weekEv.mult : 1;
+  if (weekEv) setTimeout(function(){
+    showToast('<svg class="ic"><use href="#i-star"/></svg> ' + t('evToast', { n: LANG === 'en' ? weekEv.en : weekEv.ru }));
+  }, 500);
   duelSeedVal = seed; duelIdx = 0; duelViewCache = null;
   hide('scrDaily');
   startGame();
@@ -2300,7 +2384,7 @@ $('btnDailyPlay').addEventListener('click', function(){
   var play = $('btnDailyPlay');
   play.disabled = true; play.innerHTML = '<span class="spinner"></span> ' + t('joining');
   wapi('/daily/join', null, function(d){
-    if (d && d.ok){ startDailyRound(d.seed); return; }
+    if (d && d.ok){ startDailyRound(d.seed, d.event); return; }
     play.disabled = false; play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('play');
     if (d && (d.error === 'attempts' || d.error === 'played')){ dailyState = d.state || dailyState; if (dailyState && d.error==='attempts') dailyState.tries = dailyState.triesMax; renderDaily(); updateDailyBadge(); }
     else $('dailyInfo').textContent = t('dailyJoinFail');
@@ -3094,7 +3178,9 @@ storeGet('bp_best', function(v){
   var cloud = parseInt(v, 10) || 0;
   if (cloud > best){ best = cloud; updateHud(); $('menuBest').textContent = t('bestN', { n: best }); }
 });
-flushPending(); // партия, прерванная закрытием приложения, засчитывается при возврате
+// прерванная партия: если её можно продолжить — ждём выбора игрока (кнопка в меню),
+// иначе сразу засчитываем счёт и кристаллы
+if (hasSavedRun()) updateResumeBtn(); else flushPending();
 storeGet('bp_snd', function(v){ if(v==='0') sndOn=false; syncToggles(); });
 storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 storeGet('bp_vib', function(v){ if(v==='0'){ vibOn=false; $('tglVib').classList.add('off'); } });
