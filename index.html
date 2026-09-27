@@ -152,6 +152,16 @@
   .toptabs { display:flex; gap:8px; }
   .toptab { border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#b7a8e8; border-radius:14px; padding:8px 18px; font-size:15px; font-weight:bold; cursor:pointer; font-family:inherit; }
   .toptab.on { color:#fff; border-color:#ffe14d; background:rgba(255,225,77,.12); }
+  .shoptabs { display:flex; gap:6px; flex-wrap:wrap; justify-content:center; width:100%; max-width:360px; margin:2px 0 2px; }
+  .shoptab { position:relative; border:2px solid rgba(255,255,255,.22); background:rgba(255,255,255,.08); color:#b7a8e8;
+             border-radius:13px; padding:6px 12px; font-size:14px; font-weight:bold; cursor:pointer; font-family:inherit; }
+  .shoptab.on { color:#fff; border-color:#ffe14d; background:rgba(255,225,77,.12); }
+  .shoptab .tabn { opacity:.6; font-size:12px; }
+  .shoptab .tabdot { position:absolute; top:-3px; right:-3px; width:9px; height:9px; border-radius:50%;
+                     background:#ff4d4d; border:2px solid #241a44; }
+  body.light .shoptab { background:rgba(46,33,84,.06); border-color:rgba(46,33,84,.16); color:#7a68b3; }
+  body.light .shoptab.on { color:#2e2154; border-color:#e0a800; background:rgba(255,193,7,.15); }
+  body.light .shoptab .tabdot { border-color:#f3eefc; }
   #topList { width:100%; max-width:360px; display:flex; flex-direction:column; gap:6px; }
   .toprow { display:flex; align-items:center; gap:10px; background:rgba(255,255,255,.07); border:2px solid rgba(255,255,255,.10); border-radius:14px; padding:8px 12px; }
   .toprow.me { border-color:#ffe14d; background:rgba(255,225,77,.10); }
@@ -282,6 +292,7 @@
 <div id="scrShop" class="screen hidden">
   <div class="logo" style="font-size:min(9vw,34px)"><svg class="ic"><use href="#i-cart"/></svg> <span id="shopTitle">Магазин</span></div>
   <div class="pill"><div class="lbl" id="shopBalLbl">Кристаллы</div><div class="val" id="shopBal">—</div></div>
+  <div id="shopTabs" class="shoptabs hidden"></div>
   <div id="shopList" style="width:100%;max-width:360px;display:flex;flex-direction:column;gap:8px"></div>
   <button class="btn ghost" id="btnShopClose"><svg class="ic"><use href="#i-home"/></svg> В меню</button>
 </div>
@@ -558,7 +569,7 @@ var I18N = {
     player:'Игрок', undoDoneFree:'Ход отменён (отмены: {n})',
     contBtn:'Продолжить — {n} ⭐', contHave:'Продолжить (оплачено)', paying:'Оплата…',
     payFail:'Оплата не прошла. Кристаллы и звёзды не списаны.', contDone:'Поехали! Нижние ряды очищены',
-    starsHdr:'За звёзды ⭐', starsBuy:'Купить · {n} ⭐', supporterT:'Меценат',
+    starsBuy:'Купить · {n} ⭐', supporterT:'Меценат',
     sk_aurora:'Аврора', sk_aurora_d:'Светящиеся блоки-сияние. Виден всем в таблицах',
     sk_prism:'Призма', sk_prism_d:'Гранёные самоцветы. Виден всем в таблицах',
     badge_sup:'Значок «Меценат»', badge_sup_d:'Сердечко рядом с именем в таблицах и профиле',
@@ -574,7 +585,7 @@ var I18N = {
     undo50:'Отмены ×50', undo50_d:'50 отмен хода — дешевле, чем пять малых наборов',
     cont_pack5:'Продолжения ×5', cont_pack5_d:'Пять продолжений про запас — выгоднее поштучных',
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
-    achHdr:'За достижения 🏅', achUnlocked:'Открыто: {t} — надень в магазине',
+    tabMine:'Моё', tabSkins:'Скины', tabThemes:'Темы', tabFrames:'Рамки', tabPacks:'Наборы', tabEmpty:'Здесь пока пусто', achUnlocked:'Открыто: {t} — надень в магазине',
     sk_blade:'Клинки', sk_blade_d:'Холодная сталь со скошенной гранью',
     sk_beacon:'Маяк', sk_beacon_d:'Пульсирующий свет и расходящийся луч',
     sk_magnet:'Магнит', sk_magnet_d:'Красно-синие полюса и силовые линии',
@@ -659,7 +670,7 @@ var I18N = {
     player:'Player', undoDoneFree:'Move undone (undos left: {n})',
     contBtn:'Continue — {n} ⭐', contHave:'Continue (paid)', paying:'Paying…',
     payFail:'Payment did not go through. Nothing was charged.', contDone:'Back in! Bottom rows cleared',
-    starsHdr:'For Stars ⭐', starsBuy:'Buy · {n} ⭐', supporterT:'Supporter',
+    starsBuy:'Buy · {n} ⭐', supporterT:'Supporter',
     sk_aurora:'Aurora', sk_aurora_d:'Glowing aurora blocks. Everyone sees it in the rankings',
     sk_prism:'Prism', sk_prism_d:'Faceted gemstones. Everyone sees it in the rankings',
     badge_sup:'"Supporter" badge', badge_sup_d:'A heart next to your name in rankings and profile',
@@ -675,7 +686,7 @@ var I18N = {
     undo50:'Undos ×50', undo50_d:'50 move undos — cheaper than five small packs',
     cont_pack5:'Continues ×5', cont_pack5_d:'Five continues in stock — cheaper than one by one',
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
-    achHdr:'For achievements 🏅', achUnlocked:'Unlocked: {t} — equip it in the shop',
+    tabMine:'Mine', tabSkins:'Skins', tabThemes:'Themes', tabFrames:'Frames', tabPacks:'Packs', tabEmpty:'Nothing here yet', achUnlocked:'Unlocked: {t} — equip it in the shop',
     sk_blade:'Blades', sk_blade_d:'Cold steel with a bevelled edge',
     sk_beacon:'Beacon', sk_beacon_d:'Pulsing light and a sweeping beam',
     sk_magnet:'Magnet', sk_magnet_d:'Red and blue poles with field lines',
@@ -2728,7 +2739,7 @@ function maybeClaimAch(){
 }
 
 // ---------- Магазин 🛒 ----------
-var shopState = null;
+var shopState = null, shopTab = 'skin';   // вкладки магазина: mine | skin | theme | frame | pack
 function applyEquipped(skin, theme){
   activeSkin = skin || '';
   activeTheme = theme || '';
@@ -2747,7 +2758,10 @@ function shopItemMeta(id){
     skin_gold: ['sk_gold','sk_gold_d'], theme_space: ['th_space','th_space_d'], undo10: ['undo10','undo10_d'],
     skin_blade: ['sk_blade','sk_blade_d'], skin_beacon: ['sk_beacon','sk_beacon_d'],
     skin_magnet: ['sk_magnet','sk_magnet_d'], frame_champ: ['fr_champ','fr_champ_d'],
-    theme_storm: ['th_storm','th_storm_d'],
+    theme_storm: ['th_storm','th_storm_d'], sk_default: ['sk_default','sk_default_d'],
+    skin_aurora: ['sk_aurora','sk_aurora_d'], skin_prism: ['sk_prism','sk_prism_d'],
+    frame_live: ['fr_live','fr_live_d'], badge_supporter: ['badge_sup','badge_sup_d'],
+    continue1: ['cont_pack','cont_pack_d'], continue5: ['cont_pack5','cont_pack5_d'],
   };
   return map[id] || [id, ''];
 }
@@ -2760,164 +2774,180 @@ function renderShop(){
   $('shopBalLbl').textContent = t('crystals');
   $('shopBal').innerHTML = shopState ? IC_GEM + ' ' + shopState.balance : IC_GEM + ' —';
   list.innerHTML = '';
-  if (!shopState){ list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>'; return; }
-  var order = ['default', 'skin_neon', 'skin_pixel', 'skin_pets', 'skin_candy', 'skin_robo',
-               'theme_space', 'theme_sunset', 'theme_deep', 'frame_gold', 'frame_rain', 'undo10', 'undo50',
-               '--ach--', 'skin_gold', 'skin_blade', 'skin_beacon', 'skin_magnet', 'frame_champ', 'theme_storm'];
-  order.forEach(function(id){
-    if (id === '--ach--'){                       // заголовок яруса наград за достижения
-      var ah = document.createElement('div');
-      ah.className = 'best'; ah.style.cssText = 'font-weight:bold;margin-top:6px';
-      ah.innerHTML = t('achHdr');
-      list.appendChild(ah);
-      return;
-    }
-    var card = document.createElement('div');
-    var isDefault = id === 'default';
-    var it = isDefault ? { kind:'skin', cost:0 } : shopState.catalog[id];
-    if (!it) return;
-    var owned = isDefault || !!shopState.owned[id];
-    var eq = (it.kind === 'skin' && (shopState.equipped.skin || '') === (isDefault ? '' : id)) ||
-             (it.kind === 'theme' && (shopState.equipped.ftheme || '') === id) ||
-             (it.kind === 'frame' && (shopState.equipped.frame || '') === id);
-    card.className = 'shopcard' + (eq ? ' eq' : '');
-    // превью
-    var cv2 = document.createElement('canvas'); cv2.width = 52; cv2.height = 52;
-    if (it.kind === 'skin') drawSkinPreview(cv2, isDefault ? '' : id, 128);
-    else if (it.kind === 'theme'){
-      var c2 = cv2.getContext('2d'), g2 = c2.createLinearGradient(0,0,0,52);
-      if (id === 'theme_sunset'){ g2.addColorStop(0,'#3b1d52'); g2.addColorStop(0.5,'#8a3b5e'); g2.addColorStop(1,'#ffb36b'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
-        var sg = c2.createRadialGradient(26,46,2,26,46,30); sg.addColorStop(0,'rgba(255,224,160,.9)'); sg.addColorStop(1,'rgba(255,170,90,0)'); c2.fillStyle=sg; c2.fillRect(0,0,52,52); }
-      else if (id === 'theme_deep'){ g2.addColorStop(0,'#06263f'); g2.addColorStop(1,'#021c30'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
-        c2.strokeStyle='rgba(189,240,255,.55)'; c2.lineWidth=1.2; [[14,38,4],[32,26,3],[22,14,2.4],[40,44,2.6]].forEach(function(p){ c2.beginPath(); c2.arc(p[0],p[1],p[2],0,6.283); c2.stroke(); }); }
-      else if (id === 'theme_storm'){ g2.addColorStop(0,'#1a1f33'); g2.addColorStop(0.5,'#2b3350'); g2.addColorStop(1,'#151a2b'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
-        c2.strokeStyle='rgba(207,224,255,.35)'; c2.lineWidth=1; [[8,6],[20,2],[34,10],[44,4],[14,30],[38,34]].forEach(function(p){ c2.beginPath(); c2.moveTo(p[0],p[1]); c2.lineTo(p[0]-4,p[1]+13); c2.stroke(); });
-        c2.fillStyle='#ffe98a'; c2.beginPath(); c2.moveTo(30,10); c2.lineTo(20,29); c2.lineTo(26,29); c2.lineTo(19,46); c2.lineTo(34,24); c2.lineTo(27,24); c2.closePath(); c2.fill(); }
-      else { g2.addColorStop(0,'#0b1030'); g2.addColorStop(1,'#05060f'); c2.fillStyle=g2; c2.fillRect(0,0,52,52); c2.fillStyle='#cfe4ff'; [[10,12,1.4],[30,8,1],[44,20,1.6],[20,34,1.1],[40,42,1.3],[8,44,1]].forEach(function(p){ c2.beginPath(); c2.arc(p[0],p[1],p[2],0,6.283); c2.fill(); }); }
-    }
-    else if (it.kind === 'frame'){
-      var c4 = cv2.getContext('2d');
-      c4.fillStyle = 'rgba(255,255,255,.06)'; c4.fillRect(0,0,52,52);
-      if (id === 'frame_rain'){
-        var rg = c4.createLinearGradient(4,0,48,0);
-        ['#ff6b6b','#ffe14d','#6bd96b','#5ec8ff','#c39bff'].forEach(function(c,i,a){ rg.addColorStop(i/(a.length-1), c); });
-        c4.strokeStyle = rg;
-      } else c4.strokeStyle = '#ffd54f';
-      c4.lineWidth = 3; c4.strokeRect(7, 16, 38, 20);
-      c4.fillStyle = 'rgba(255,255,255,.75)'; c4.fillRect(13, 24, 26, 4);
-      if (id === 'frame_champ'){                 // лавровый венок вокруг рамки чемпиона
-        c4.strokeStyle = '#9ad06a'; c4.lineWidth = 2; c4.lineCap = 'round';
-        c4.beginPath(); c4.arc(26, 26, 20, 0.55, 2.59); c4.stroke();
-        c4.beginPath(); c4.arc(26, 26, 20, 3.69, 5.73); c4.stroke();
-        c4.fillStyle = '#ffd54f'; c4.beginPath(); c4.arc(26, 6, 2.6, 0, 6.283); c4.fill();
-      }
-    }
-    else { var c3 = cv2.getContext('2d'); c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0,0,52,52); c3.fillStyle = '#c39bff'; c3.font = 'bold 26px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle'; c3.fillText('↩', 26, 27); }
-    var sn = document.createElement('div'); sn.className = 'sn';
-    var meta = shopItemMeta(isDefault ? 'sk_default' : id);
-    var nameKey = isDefault ? 'sk_default' : meta[0], descKey = isDefault ? 'sk_default_d' : meta[1];
-    var extra = id === 'undo10' && shopState.undoCredits > 0 ? ' · ' + t('undoLeft', { n: shopState.undoCredits }) : '';
-    if (isDefault) extra += ' · ' + t('freeItem');
-    var lack = (!owned && !isDefault && !it.ach && it.cost > 0 && shopState.balance < it.cost) ? it.cost - shopState.balance : 0;
-    sn.innerHTML = '<b>' + t(nameKey) + newTag(id) + '</b><small>' + t(descKey) + extra + '</small>' +
-      (lack ? '<small class="lack">' + t('needGems', { n: lack }) + ' ' + IC_GEM + '</small>' : '');
-    var btn = document.createElement('button'); btn.className = 'sbtn';
-    if (it.kind === 'pack'){
-      btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
-      btn.onclick = function(){ shopBuy(id, btn); };
-    } else if (eq && !isDefault){
-      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
-      btn.onclick = function(){ shopEquip(it.kind, '', btn); };
-    } else if (eq && isDefault){
-      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
-    } else if (owned){
-      btn.textContent = t('equipBtn');
-      btn.onclick = function(){ shopEquip(it.kind, isDefault ? '' : id, btn); };
-    } else if (it.ach){
-      btn.className = 'sbtn lock';
-      var achName = (LANG === 'en' ? it.achEn : it.achT) || t('achLock');
-      // на кнопке — короткая пометка, само условие отдельной строкой: длинные
-      // названия достижений иначе раздувают кнопку и сплющивают описание
-      sn.innerHTML += '<small class="req">' + t('achReq', { t: achName }) + '</small>';
-      btn.innerHTML = '<svg class="ic"><use href="#i-lock"/></svg> ' + t('achLockShort');
-      btn.onclick = function(){
-        sfxClick();
-        showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achHint', { t: achName }));
-      };
-    } else if (shopState.balance < it.cost){
-      btn.className = 'sbtn need';                     // цена видна всегда, нехватка — подсказкой в описании
-      btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
-      btn.onclick = function(){ sfxClick(); showToast(IC_GEM + ' ' + t('needGemsHint', { n: it.cost - shopState.balance })); };
-    } else {
-      btn.innerHTML = t('buy') + ' · ' + it.cost + ' ' + IC_GEM;
-      btn.onclick = function(){ shopBuy(id, btn); };
-    }
-    card.appendChild(cv2); card.appendChild(sn); card.appendChild(btn);
-    list.appendChild(card);
-  });
-  renderStarsSection(list);
+  var tabs = $('shopTabs');
+  if (!shopState){
+    if (tabs) tabs.classList.add('hidden');
+    list.innerHTML = '<div class="best"><span class="spinner pl"></span> ' + t('loading') + '</div>';
+    return;
+  }
+  var items = shopItemList();
+  var hasMine = items.filter(function(x){ return x.owned && x.id !== 'default'; }).length >= 2;
+  if (!hasMine && shopTab === 'mine') shopTab = 'skin';
+  renderShopTabs(items, hasMine);
+  var shown = items.filter(function(x){ return shopTab === 'mine' ? x.owned : x.tab === shopTab; });
+  if (shopTab === 'mine'){
+    // надетое наверх, дальше по видам — чтобы переодеться в два касания
+    var kOrd = { skin:0, theme:1, frame:2, badge:3, pack:4 };
+    var ko = function(k){ return kOrd[k] === undefined ? 9 : kOrd[k]; };   // у скина индекс 0 — «||» тут ломается
+    shown.sort(function(a,b){ return (b.eq?1:0)-(a.eq?1:0) || ko(a.kind)-ko(b.kind); });
+  }
+  if (!shown.length){
+    list.innerHTML = '<div class="best">' + t('tabEmpty') + '</div>';
+    capLoaders(); return;
+  }
+  shown.forEach(function(x){ list.appendChild(shopCard(x)); });
   capLoaders();
 }
-// товары за звёзды: премиум-стили, значок и продолжения партии
-function renderStarsSection(list){
-  if (!shopState || !shopState.starsCatalog || !starsOk()) return;
-  var meta = {
-    skin_aurora:     ['sk_aurora', 'sk_aurora_d', 'skin'],
-    skin_prism:      ['sk_prism', 'sk_prism_d', 'skin'],
-    frame_live:      ['fr_live', 'fr_live_d', 'frame'],
-    badge_supporter: ['badge_sup', 'badge_sup_d', 'badge'],
-    continue1:       ['cont_pack', 'cont_pack_d', 'pack'],
-    continue5:       ['cont_pack5', 'cont_pack5_d', 'pack'],
-  };
-  var hdr = document.createElement('div');
-  hdr.className = 'best';
-  hdr.style.cssText = 'font-weight:bold;margin-top:6px';
-  hdr.innerHTML = t('starsHdr');
-  list.appendChild(hdr);
-  ['skin_aurora', 'skin_prism', 'frame_live', 'badge_supporter', 'continue1', 'continue5'].forEach(function(id){
-    var it = shopState.starsCatalog[id]; if (!it) return;
-    var m = meta[id];
-    var owned = !!shopState.owned[id];
-    var eq = (m[2] === 'skin' && (shopState.equipped.skin || '') === id) ||
-             (m[2] === 'frame' && (shopState.equipped.frame || '') === id);
-    var card = document.createElement('div');
-    card.className = 'shopcard' + (eq ? ' eq' : '');
-    var cv2;
-    if (m[2] === 'frame'){
-      // превью живой рамки — тот же CSS, что в таблицах, чтобы было видно переливание
-      cv2 = document.createElement('div');
-      cv2.className = 'nmtxt fr fr-live';
-      cv2.style.cssText = 'width:52px;height:52px;flex:none;box-sizing:border-box;padding:0';
-    } else {
-      cv2 = document.createElement('canvas'); cv2.width = 52; cv2.height = 52;
-      if (m[2] === 'skin') drawSkinPreview(cv2, id, 128);
-      else {
-        var c3 = cv2.getContext('2d');
-        c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0, 0, 52, 52);
-        c3.fillStyle = id === 'badge_supporter' ? '#ff6b8a' : '#ffd54f';
-        c3.font = 'bold 28px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle';
-        c3.fillText(id === 'badge_supporter' ? '♥' : '★', 26, 28);
-      }
+// единый список товаров всех трёх витрин, отсортированный «дешёвые сверху»
+function shopItemList(){
+  var out = [], eqp = shopState.equipped || {};
+  function tabOf(kind){ return kind === 'badge' ? 'frame' : kind; }
+  function eqOf(kind, id){
+    return (kind === 'skin' && (eqp.skin || '') === id) ||
+           (kind === 'theme' && (eqp.ftheme || '') === id) ||
+           (kind === 'frame' && (eqp.frame || '') === id);
+  }
+  out.push({ id:'default', kind:'skin', tab:'skin', cur:'gem', cost:0, grp:0, sort:-1,
+             owned:true, eq:(eqp.skin || '') === '' });
+  for (var id in shopState.catalog){
+    var it = shopState.catalog[id];
+    out.push({ id:id, it:it, kind:it.kind, tab:tabOf(it.kind), cur: it.ach ? 'ach' : 'gem',
+               cost:it.cost, grp: it.ach ? 2 : 0, sort: it.ach ? 0 : it.cost,
+               owned: !!shopState.owned[id], eq: eqOf(it.kind, id) });
+  }
+  if (shopState.starsCatalog && starsOk()){
+    for (var sid in shopState.starsCatalog){
+      var st = shopState.starsCatalog[sid];
+      out.push({ id:sid, it:st, kind:st.kind, tab:tabOf(st.kind), cur:'star',
+                 stars:st.stars, grp:1, sort:st.stars,
+                 owned: !!shopState.owned[sid], eq: eqOf(st.kind, sid) });
     }
-    var sn = document.createElement('div'); sn.className = 'sn';
-    var extra = m[2] === 'pack' && shopState.contCredits > 0 ? ' · ' + t('contLeft', { n: shopState.contCredits }) : '';
-    sn.innerHTML = '<b>' + t(m[0]) + newTag(id) + '</b><small>' + t(m[1]) + extra + '</small>';
-    var btn = document.createElement('button'); btn.className = 'sbtn';
-    if (eq){
-      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
-      btn.onclick = function(){ shopEquip(m[2], '', btn); };
-    } else if (owned && (m[2] === 'skin' || m[2] === 'frame')){
-      btn.textContent = t('equipBtn');
-      btn.onclick = function(){ shopEquip(m[2], id, btn); };
-    } else if (owned && m[2] === 'badge'){
-      btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
-    } else {
-      btn.innerHTML = t('starsBuy', { n: it.stars });
-      btn.onclick = function(){ starsBuy(id, btn); };
-    }
-    card.appendChild(cv2); card.appendChild(sn); card.appendChild(btn);
-    list.appendChild(card);
+  }
+  out.sort(function(a,b){ return a.grp - b.grp || a.sort - b.sort; });
+  return out;
+}
+function renderShopTabs(items, hasMine){
+  var box = $('shopTabs'); if (!box) return;
+  box.classList.remove('hidden');
+  box.innerHTML = '';
+  var defs = [['skin','tabSkins'],['theme','tabThemes'],['frame','tabFrames'],['pack','tabPacks']];
+  if (hasMine) defs.unshift(['mine','tabMine']);
+  defs.forEach(function(d){
+    var inTab = items.filter(function(x){ return d[0] === 'mine' ? x.owned : x.tab === d[0]; });
+    var b = document.createElement('button');
+    b.className = 'shoptab' + (shopTab === d[0] ? ' on' : '');
+    // точка на вкладке, где лежат новинки: иначе непонятно, куда вела точка на плитке
+    var hasNew = d[0] !== 'mine' && inTab.some(function(x){ return shopNewIds.indexOf(x.id) >= 0; });
+    b.innerHTML = t(d[1]) + ' <span class="tabn">' + inTab.length + '</span>' +
+                  (hasNew ? '<span class="tabdot"></span>' : '');
+    b.onclick = function(){ sfxClick(); shopTab = d[0]; renderShop(); };
+    box.appendChild(b);
   });
+}
+function shopPreview(id, kind){
+  if (id === 'frame_live'){
+    // превью живой рамки — тот же CSS, что в таблицах, чтобы было видно переливание
+    var dv = document.createElement('div');
+    dv.className = 'nmtxt fr fr-live';
+    dv.style.cssText = 'width:52px;height:52px;flex:none;box-sizing:border-box;padding:0';
+    return dv;
+  }
+  var cv = document.createElement('canvas'); cv.width = 52; cv.height = 52;
+  if (kind === 'skin'){ drawSkinPreview(cv, id === 'default' ? '' : id, 128); return cv; }
+  if (kind === 'theme'){
+    var c2 = cv.getContext('2d'), g2 = c2.createLinearGradient(0,0,0,52);
+    if (id === 'theme_sunset'){ g2.addColorStop(0,'#3b1d52'); g2.addColorStop(0.5,'#8a3b5e'); g2.addColorStop(1,'#ffb36b'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
+      var sg = c2.createRadialGradient(26,46,2,26,46,30); sg.addColorStop(0,'rgba(255,224,160,.9)'); sg.addColorStop(1,'rgba(255,170,90,0)'); c2.fillStyle=sg; c2.fillRect(0,0,52,52); }
+    else if (id === 'theme_deep'){ g2.addColorStop(0,'#06263f'); g2.addColorStop(1,'#021c30'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
+      c2.strokeStyle='rgba(189,240,255,.55)'; c2.lineWidth=1.2; [[14,38,4],[32,26,3],[22,14,2.4],[40,44,2.6]].forEach(function(p){ c2.beginPath(); c2.arc(p[0],p[1],p[2],0,6.283); c2.stroke(); }); }
+    else if (id === 'theme_storm'){ g2.addColorStop(0,'#1a1f33'); g2.addColorStop(0.5,'#2b3350'); g2.addColorStop(1,'#151a2b'); c2.fillStyle=g2; c2.fillRect(0,0,52,52);
+      c2.strokeStyle='rgba(207,224,255,.35)'; c2.lineWidth=1; [[8,6],[20,2],[34,10],[44,4],[14,30],[38,34]].forEach(function(p){ c2.beginPath(); c2.moveTo(p[0],p[1]); c2.lineTo(p[0]-4,p[1]+13); c2.stroke(); });
+      c2.fillStyle='#ffe98a'; c2.beginPath(); c2.moveTo(30,10); c2.lineTo(20,29); c2.lineTo(26,29); c2.lineTo(19,46); c2.lineTo(34,24); c2.lineTo(27,24); c2.closePath(); c2.fill(); }
+    else { g2.addColorStop(0,'#0b1030'); g2.addColorStop(1,'#05060f'); c2.fillStyle=g2; c2.fillRect(0,0,52,52); c2.fillStyle='#cfe4ff'; [[10,12,1.4],[30,8,1],[44,20,1.6],[20,34,1.1],[40,42,1.3],[8,44,1]].forEach(function(p){ c2.beginPath(); c2.arc(p[0],p[1],p[2],0,6.283); c2.fill(); }); }
+    return cv;
+  }
+  if (kind === 'frame'){
+    var c4 = cv.getContext('2d');
+    c4.fillStyle = 'rgba(255,255,255,.06)'; c4.fillRect(0,0,52,52);
+    if (id === 'frame_rain'){
+      var rg = c4.createLinearGradient(4,0,48,0);
+      ['#ff6b6b','#ffe14d','#6bd96b','#5ec8ff','#c39bff'].forEach(function(c,i,a){ rg.addColorStop(i/(a.length-1), c); });
+      c4.strokeStyle = rg;
+    } else c4.strokeStyle = '#ffd54f';
+    c4.lineWidth = 3; c4.strokeRect(7, 16, 38, 20);
+    c4.fillStyle = 'rgba(255,255,255,.75)'; c4.fillRect(13, 24, 26, 4);
+    if (id === 'frame_champ'){                   // лавровый венок вокруг рамки чемпиона
+      c4.strokeStyle = '#9ad06a'; c4.lineWidth = 2; c4.lineCap = 'round';
+      c4.beginPath(); c4.arc(26, 26, 20, 0.55, 2.59); c4.stroke();
+      c4.beginPath(); c4.arc(26, 26, 20, 3.69, 5.73); c4.stroke();
+      c4.fillStyle = '#ffd54f'; c4.beginPath(); c4.arc(26, 6, 2.6, 0, 6.283); c4.fill();
+    }
+    return cv;
+  }
+  var c3 = cv.getContext('2d');
+  c3.fillStyle = 'rgba(255,255,255,.08)'; c3.fillRect(0,0,52,52);
+  if (kind === 'badge'){
+    c3.fillStyle = '#ff6b8a'; c3.font = 'bold 28px Arial';
+    c3.textAlign = 'center'; c3.textBaseline = 'middle'; c3.fillText('♥', 26, 28);
+  } else {
+    c3.fillStyle = id === 'continue1' || id === 'continue5' ? '#ffd54f' : '#c39bff';
+    c3.font = 'bold 26px Arial'; c3.textAlign = 'center'; c3.textBaseline = 'middle';
+    c3.fillText(id === 'continue1' || id === 'continue5' ? '★' : '↩', 26, 27);
+  }
+  return cv;
+}
+function shopCard(x){
+  var id = x.id, it = x.it || {}, kind = x.kind, isDefault = id === 'default';
+  var card = document.createElement('div');
+  card.className = 'shopcard' + (x.eq ? ' eq' : '');
+  card.appendChild(shopPreview(id, kind));
+  var sn = document.createElement('div'); sn.className = 'sn';
+  var meta = shopItemMeta(isDefault ? 'sk_default' : id);
+  var extra = '';
+  if (id === 'undo10' && shopState.undoCredits > 0) extra = ' · ' + t('undoLeft', { n: shopState.undoCredits });
+  if (x.cur === 'star' && kind === 'pack' && shopState.contCredits > 0) extra = ' · ' + t('contLeft', { n: shopState.contCredits });
+  if (isDefault) extra += ' · ' + t('freeItem');
+  var lack = (x.cur === 'gem' && !x.owned && !isDefault && x.cost > 0 && shopState.balance < x.cost) ? x.cost - shopState.balance : 0;
+  sn.innerHTML = '<b>' + t(meta[0]) + newTag(id) + '</b><small>' + t(meta[1]) + extra + '</small>' +
+    (lack ? '<small class="lack">' + t('needGems', { n: lack }) + ' ' + IC_GEM + '</small>' : '');
+  var btn = document.createElement('button'); btn.className = 'sbtn';
+  if (x.owned && kind === 'pack'){                // наборы покупаются повторно
+    btn.innerHTML = x.cur === 'star' ? t('starsBuy', { n: x.stars }) : t('buy') + ' · ' + x.cost + ' ' + IC_GEM;
+    btn.onclick = x.cur === 'star' ? function(){ starsBuy(id, btn); } : function(){ shopBuy(id, btn); };
+  } else if (x.owned && kind === 'badge'){
+    btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
+  } else if (x.eq && isDefault){
+    btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
+  } else if (x.eq){
+    btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
+    btn.onclick = function(){ shopEquip(kind, '', btn); };
+  } else if (x.owned){
+    btn.textContent = t('equipBtn');
+    btn.onclick = function(){ shopEquip(kind, isDefault ? '' : id, btn); };
+  } else if (x.cur === 'ach'){
+    btn.className = 'sbtn lock';
+    var achName = (LANG === 'en' ? it.achEn : it.achT) || t('achLock');
+    // на кнопке — короткая пометка, само условие отдельной строкой: длинные
+    // названия достижений иначе раздувают кнопку и сплющивают описание
+    sn.innerHTML += '<small class="req">' + t('achReq', { t: achName }) + '</small>';
+    btn.innerHTML = '<svg class="ic"><use href="#i-lock"/></svg> ' + t('achLockShort');
+    btn.onclick = function(){
+      sfxClick();
+      showToast('<svg class="ic"><use href="#i-medal"/></svg> ' + t('achHint', { t: achName }));
+    };
+  } else if (x.cur === 'star'){
+    btn.innerHTML = t('starsBuy', { n: x.stars });
+    btn.onclick = function(){ starsBuy(id, btn); };
+  } else if (kind !== 'pack' && shopState.balance < x.cost){
+    btn.className = 'sbtn need';                  // цена видна всегда, нехватка — подсказкой в описании
+    btn.innerHTML = t('buy') + ' · ' + x.cost + ' ' + IC_GEM;
+    btn.onclick = function(){ sfxClick(); showToast(IC_GEM + ' ' + t('needGemsHint', { n: x.cost - shopState.balance })); };
+  } else {
+    btn.innerHTML = t('buy') + ' · ' + x.cost + ' ' + IC_GEM;
+    btn.onclick = function(){ shopBuy(id, btn); };
+  }
+  card.appendChild(sn); card.appendChild(btn);
+  return card;
 }
 function openShop(){
   hide('scrMenu'); show('scrShop'); state = 'menu';
