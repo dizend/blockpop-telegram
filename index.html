@@ -230,6 +230,7 @@
   <button class="btn blue hidden" id="btnResumeRun"><svg class="ic"><use href="#i-play"/></svg>Продолжить партию</button>
   <button class="btn blue slim hidden" id="btnBonus"><svg class="ic"><use href="#i-gift"/></svg>Бонус дня</button>
   <div class="best hidden" id="bonusMsg"></div>
+  <div class="best hidden" id="nextGoal"></div>
   <div class="menugrid">
     <button class="mtile t-or hidden" id="btnDaily" style="position:relative"><svg class="ic"><use href="#i-cal"/></svg>Вызов дня<span id="dailyBadge" class="hidden" style="position:absolute;top:-5px;right:-5px;width:16px;height:16px;border-radius:50%;background:#ff5252;border:2.5px solid #18102d"></span></button>
     <button class="mtile t-rd hidden" id="btnDuel"><svg class="ic"><use href="#i-duel"/></svg>Дуэль</button>
@@ -340,6 +341,7 @@
   <div class="newrec hidden" id="newRec"><svg class="ic"><use href="#i-trophy"/></svg> Новый рекорд!</div>
   <div class="best hidden" id="scoreSent"></div>
   <div class="best hidden" id="overEarn"></div>
+  <div class="best hidden" id="overNext"></div>
   <button class="btn hidden" id="btnContinue" style="background:linear-gradient(180deg,#ffd54f,#ffab00);box-shadow:0 5px 0 #c17900, 0 8px 16px rgba(0,0,0,.35)"><svg class="ic"><use href="#i-star"/></svg>Продолжить — 25 ⭐</button>
   <button class="btn green" id="btnAgain"><svg class="ic"><use href="#i-restart"/></svg>Ещё раз</button>
   <button class="btn blue" id="btnShare"><svg class="ic"><use href="#i-share"/></svg>Поделиться</button>
@@ -459,6 +461,7 @@ function refreshMe(){
       if (d.shopNew !== undefined){
         var sb = $('shopBadge'); if (sb) sb.classList.toggle('hidden', !(d.shopNew > 0));
       }
+      if (d.tiles) { myTiles = d.tiles; updateNextGoal(); }
       if (d.refs){ myRefs = d.refs; updateRefInfo(); }
     }
     updateCrysUI(true);
@@ -585,7 +588,7 @@ var I18N = {
     undo50:'Отмены ×50', undo50_d:'50 отмен хода — дешевле, чем пять малых наборов',
     cont_pack5:'Продолжения ×5', cont_pack5_d:'Пять продолжений про запас — выгоднее поштучных',
     fr_live:'Живая рамка', fr_live_d:'Переливающаяся рамка имени в таблицах — за кристаллы таких нет',
-    tabMine:'Моё', tabSkins:'Скины', tabThemes:'Темы', tabFrames:'Рамки', tabPacks:'Наборы', tabEmpty:'Здесь пока пусто', achUnlocked:'Открыто: {t} — надень в магазине',
+    goalNext:'Ближайшая цель: собери плитку <b>{n}</b> → +{r} {g}', overBonusNow:'Забери бонус дня: <b>+{n}</b> {g}', overBonusTomorrow:'Завтра бонус дня: <b>+{n}</b> {g} — заходи', tabMine:'Моё', tabSkins:'Скины', tabThemes:'Темы', tabFrames:'Рамки', tabPacks:'Наборы', tabEmpty:'Здесь пока пусто', achUnlocked:'Открыто: {t} — надень в магазине',
     sk_blade:'Клинки', sk_blade_d:'Холодная сталь со скошенной гранью',
     sk_beacon:'Маяк', sk_beacon_d:'Пульсирующий свет и расходящийся луч',
     sk_magnet:'Магнит', sk_magnet_d:'Красно-синие полюса и силовые линии',
@@ -686,7 +689,7 @@ var I18N = {
     undo50:'Undos ×50', undo50_d:'50 move undos — cheaper than five small packs',
     cont_pack5:'Continues ×5', cont_pack5_d:'Five continues in stock — cheaper than one by one',
     fr_live:'Living frame', fr_live_d:'A shimmering name frame in the rankings — crystals cannot buy it',
-    tabMine:'Mine', tabSkins:'Skins', tabThemes:'Themes', tabFrames:'Frames', tabPacks:'Packs', tabEmpty:'Nothing here yet', achUnlocked:'Unlocked: {t} — equip it in the shop',
+    goalNext:'Next goal: reach the <b>{n}</b> tile → +{r} {g}', overBonusNow:'Claim your daily bonus: <b>+{n}</b> {g}', overBonusTomorrow:'Tomorrow\'s daily bonus: <b>+{n}</b> {g} — come back', tabMine:'Mine', tabSkins:'Skins', tabThemes:'Themes', tabFrames:'Frames', tabPacks:'Packs', tabEmpty:'Nothing here yet', achUnlocked:'Unlocked: {t} — equip it in the shop',
     sk_blade:'Blades', sk_blade_d:'Cold steel with a bevelled edge',
     sk_beacon:'Beacon', sk_beacon_d:'Pulsing light and a sweeping beam',
     sk_magnet:'Magnet', sk_magnet_d:'Red and blue poles with field lines',
@@ -1001,6 +1004,7 @@ function startGame(){
   scoreCounted = false; contUsed = false; earnedThisRun = false; lsSet('bp_pending', ''); clearRun();
   var ss=$('scoreSent'); if (ss){ ss.classList.add('hidden'); ss.textContent=''; }
   var oe=$('overEarn'); if (oe){ oe.classList.add('hidden'); oe.textContent=''; }
+  var on=$('overNext'); if (on){ on.classList.add('hidden'); on.textContent=''; }
   gameStartTs = Date.now();
   dropsCount = 0;
   runMaxTile = 0; runMaxCombo = 0;
@@ -1317,6 +1321,37 @@ function resumeRun(){
   showToast('<svg class="ic"><use href="#i-play"/></svg> ' + t('resumeDone'));
   return true;
 }
+// Ближайшая недостигнутая веха. «Собери 2048» в первый день — цель, до которой
+// новичок не дойдёт, и потому она ничего ему не обещает.
+var TILE_GOALS = [['m512', 512, 10], ['m1024', 1024, 20], ['m2048', 2048, 40]];
+function nextTileGoal(){
+  if (!myTiles) return null;
+  for (var i = 0; i < TILE_GOALS.length; i++){
+    if (myTiles.indexOf(TILE_GOALS[i][0]) < 0) return TILE_GOALS[i];
+  }
+  return null;
+}
+function updateNextGoal(){
+  var el = $('nextGoal'); if (!el) return;
+  var g = nextTileGoal();
+  if (!g){ el.classList.add('hidden'); return; }
+  el.innerHTML = t('goalNext', { n: g[1], r: g[2], g: IC_GEM });
+  el.classList.remove('hidden');
+}
+// Экран конца партии: чем конкретно новичку заняться дальше и почему завтра.
+function updateOverNext(){
+  var el = $('overNext'); if (!el) return;
+  var parts = [];
+  var g = nextTileGoal();
+  if (g) parts.push(t('goalNext', { n: g[1], r: g[2], g: IC_GEM }));
+  if (bonusState){
+    if (bonusState.available) parts.push(t('overBonusNow', { n: bonusState.amount, g: IC_GEM }));
+    else if (bonusState.nextAmount) parts.push(t('overBonusTomorrow', { n: bonusState.nextAmount, g: IC_GEM }));
+  }
+  if (!parts.length){ el.classList.add('hidden'); return; }
+  el.innerHTML = parts.join('<br>');
+  el.classList.remove('hidden');
+}
 function updateResumeBtn(){
   var b = $('btnResumeRun'); if (!b) return;
   var r = hasSavedRun();
@@ -1375,6 +1410,7 @@ function gameOver(){
   updateHud();
   $('btnStory').classList.toggle('hidden', !canStory());
   updateContBtn();
+  updateOverNext();
   setTimeout(function(){ show('scrOver'); }, 600);
 }
 
@@ -1428,6 +1464,7 @@ function drawSpecial(x,y,v,scale){
   ctx.restore();
 }
 var activeSkin = '', activeTheme = '', previewSkin = null, undoCredits = 0;
+var myTiles = null;   // какие вехи по плиткам уже взяты (приходит из /me)
 function drawBlock(x,y,v,scale,popped){
   if (v < 0){ drawSpecial(x,y,v,scale); return; }
   var sk = previewSkin !== null ? previewSkin : activeSkin;
@@ -3409,7 +3446,7 @@ function applyLang(){
   setBtn('btnShare', 'share', 'share');
   var tt = document.querySelector('#scrTop .logo'); if (tt) tt.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> ' + t('seasonTop');
   try {
-    updateResumeBtn(); updateRefInfo();
+    updateResumeBtn(); updateRefInfo(); updateNextGoal();
     var un = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name;
     if (un) $('userHello').textContent = t('hello', { n: un });
   } catch(e){}
