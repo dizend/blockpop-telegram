@@ -992,7 +992,10 @@ var duelParam = null, tourParam = null, startWithDaily = false, pendingRef = nul
 
 // ---------- Запуск игры ----------
 function startGame(){
-  if (duelKind !== 'daily') evMult = 1;   // правило недели действует только в вызове дня
+  // duelKind остаётся 'daily' и после выхода из вызова, поэтому смотрим ещё и на
+  // duelActive: иначе множитель «двойных очков» утекал в обычную партию и давал
+  // фальшивый рекорд
+  if (!(duelActive && duelKind === 'daily')) evMult = 1;
   newGrid(); blocks=[]; particles=[]; floaters=[]; dropB=null;
   score=0; combo=0; milestones={}; shakeT=0; bannerT=0;
   scoreCounted = false; contUsed = false; earnedThisRun = false; lsSet('bp_pending', ''); clearRun();
@@ -1334,6 +1337,7 @@ function flushPending(){
   });
 }
 document.addEventListener('visibilitychange', function(){
+  try { if (document.hidden) musicStop(); else syncMusic(); } catch(e){}
   if (document.hidden) saveRun();
   // очищает запись только тот, кто партию засчитал (countAbandoned/gameOver/startGame):
   // сброс на «показали снова» гасил бы её раньше, чем flushPending успеет прочитать
@@ -1888,9 +1892,10 @@ function makeFlair(skin){
   return img;
 }
 function skinLabel(skin, ftheme){
-  var s = t(skin === 'skin_neon' ? 'sk_neon' : skin === 'skin_pixel' ? 'sk_pixel' :
-            skin === 'skin_pets' ? 'sk_pets' : skin === 'skin_gold' ? 'sk_gold' : 'sk_default');
-  if (ftheme === 'theme_space') s += ' · ' + t('th_space');
+  // берём названия из того же справочника, что и магазин: раньше список был
+  // захардкожен и все новые скины подписывались как «Классика»
+  var s = t(skin ? shopItemMeta(skin)[0] : 'sk_default');
+  if (ftheme) s += ' · ' + t(shopItemMeta(ftheme)[0]);
   return s;
 }
 var profBackId = 'scrTop', profReq = 0;
@@ -2237,9 +2242,13 @@ $('btnRestart1').addEventListener('click', function(){ if (duelActive) return; s
 $('btnAgain').addEventListener('click', function(){ sfxClick(); hide('scrOver'); startGame(); });
 // выход из оплаченного раунда возвращает на экран режима (оттуда можно войти снова),
 // а не в главное меню, откуда дуэль и турнир недостижимы, а ставка сгорела бы молча
+// Перед входом в вызов дня / дуэль / турнир прошлая обычная партия должна быть
+// засчитана: startGame стирает bp_pending и bp_run, и раньше рекорд с кристаллами
+// просто пропадали. Вызывать строго ДО установки duelActive.
+function settlePlainRun(){ try { flushPending(); countAbandoned(); } catch(e){} }
 function leaveRound(){
   var kind = duelKind;
-  duelActive = false; state = 'menu'; musicStop();
+  duelActive = false; duelKind = 'duel'; evMult = 1; state = 'menu'; musicStop();
   hide('scrPause'); hide('scrOver');
   if (kind === 'daily'){ openDaily(); return; }
   if (kind === 'tour' && tourParam){ openTour(); return; }
@@ -2358,6 +2367,7 @@ function duelJoin(){
   });
 }
 function startDuelRound(){
+  settlePlainRun();
   duelActive = true; duelKind = 'duel';
   duelDropsLimit = (duelParam && duelParam.drops) || 40;
   lsSet('bp_duel_tut', '1');
@@ -2480,6 +2490,15 @@ function renderDaily(){
     big.classList.add('hidden'); my.classList.add('hidden'); list.innerHTML = ''; play.classList.add('hidden');
     capLoaders(); return;
   }
+  if (d.netErr){
+    info.textContent = t('duelNoNet');
+    big.classList.add('hidden'); my.classList.add('hidden'); list.innerHTML = '';
+    play.classList.remove('hidden'); play.disabled = false;
+    play.innerHTML = '<svg class="ic"><use href="#i-play"/></svg>' + t('duelRetryBtn');
+    play.onclick = function(){ sfxClick(); openDaily(); };
+    capLoaders(); return;
+  }
+  play.onclick = null;
   var left = Math.max(0, d.endsAt - Date.now());
   var hh = Math.floor(left / 3600000), mm = Math.floor(left % 3600000 / 60000);
   var evb = $('dailyEvent');
@@ -2540,8 +2559,8 @@ function openDaily(){
   dailyState = null; renderDaily();
   checkQuests(false);
   wapi('/daily/state', null, function(d){
-    dailyState = (d && d.ok) ? d : { played:false, tries:2, triesMax:2, top:[], players:0, endsAt:Date.now(), myId:0 };
-    if (dailyState.event) weekEv = dailyState.event;
+    dailyState = (d && d.ok) ? d : { netErr:true, played:false, tries:0, triesMax:2, top:[], players:0, endsAt:Date.now(), myId:0 };
+    weekEv = dailyState.event || null;   // правило недели заканчивается — старое держать нельзя
     renderDaily(); updateDailyBadge();
   });
 }
@@ -2550,6 +2569,7 @@ function checkDailyBadge(){
   wapi('/daily/state', null, function(d){ if (d && d.ok){ dailyState = d; if (d.event) weekEv = d.event; updateDailyBadge(); } });
 }
 function startDailyRound(seed, ev){
+  settlePlainRun();
   duelActive = true; duelKind = 'daily';
   duelDropsLimit = 40;
   if (ev) weekEv = ev;
@@ -2676,6 +2696,7 @@ $('btnTourPlay').addEventListener('click', function(){
   play.disabled = true; play.innerHTML = t('joining');
   wapi('/tour/join', { tour: tourParam.raw }, function(d){
     if (d && d.ok){
+      settlePlainRun();
       duelActive = true; duelKind = 'tour';
       duelDropsLimit = 40;
       duelSeedVal = d.seed; duelIdx = 0; duelViewCache = null;
@@ -2919,7 +2940,7 @@ function shopCard(x){
   } else if (x.eq && isDefault){
     btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn'); btn.disabled = true;
   } else if (x.eq){
-    btn.className = 'sbtn eqd'; btn.textContent = t('equippedBtn');
+    btn.className = 'sbtn eqd'; btn.textContent = t('unequip');   // она именно снимает, а не просто подписывает состояние
     btn.onclick = function(){ shopEquip(kind, '', btn); };
   } else if (x.owned){
     btn.textContent = t('equipBtn');
@@ -2953,12 +2974,20 @@ function openShop(){
   hide('scrMenu'); show('scrShop'); state = 'menu';
   shopState = null; renderShop();
   wapi('/shop/state', null, function(d){
-    if (d && d.ok){
+    if (d && d.ok && d.catalog && d.owned && d.equipped){
       shopState = d;
       shopNewIds = d.newIds || [];              // сервер уже отметил магазин просмотренным
       var sb = $('shopBadge'); if (sb) sb.classList.add('hidden');
+      renderShop();
+      return;
     }
-    renderShop();
+    // иначе экран навсегда оставался со спиннером «Загружаю…»
+    var tabs = $('shopTabs'); if (tabs) tabs.classList.add('hidden');
+    $('shopList').innerHTML = '<div class="best">' + t('duelNoNet') + '</div>';
+    var rb = document.createElement('button'); rb.className = 'btn'; rb.textContent = t('duelRetryBtn');
+    rb.onclick = function(){ sfxClick(); openShop(); };
+    $('shopList').appendChild(rb);
+    capLoaders();
   });
 }
 function shopBuy(id, btn){
@@ -3182,7 +3211,7 @@ function openTop(){
   topData = null; duelHist = null; renderTop();
   wapi('/top', null, function(d){
     if (d && d.ok) topData = d;
-    else topData = { global: [], rivals: [], my: null, myId: 0, endsAt: 0 };
+    else { topData = null; $('topList').innerHTML = '<div class="best">' + t('duelNoNet') + '</div>'; $('topMe').textContent = ''; return; }
     renderTop();
   });
 }
@@ -3379,6 +3408,11 @@ function applyLang(){
   setBtn('btnAgain', 'restart', 'again');
   setBtn('btnShare', 'share', 'share');
   var tt = document.querySelector('#scrTop .logo'); if (tt) tt.innerHTML = '<svg class="ic"><use href="#i-trophy"/></svg> ' + t('seasonTop');
+  try {
+    updateResumeBtn(); updateRefInfo();
+    var un = tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name;
+    if (un) $('userHello').textContent = t('hello', { n: un });
+  } catch(e){}
   $('topTabR').textContent = t('circle'); $('topTabG').textContent = t('world');
   $('topTabH').textContent = t('duelsTab'); $('topTabA').textContent = t('badges');
   setBtn('btnTopClose', 'home', 'toMenu', ' ');
@@ -3454,10 +3488,7 @@ storeGet('bp_mus', function(v){ if(v==='0') musOn=false; syncToggles(); });
 storeGet('bp_vib', function(v){ if(v==='0'){ vibOn=false; $('tglVib').classList.add('off'); } });
 applyTheme();
 applyEquipped(lsGet('bp_skin') || '', lsGet('bp_theme') || '');
-applyLang();
-if (tg && tg.initDataUnsafe && tg.initDataUnsafe.user && tg.initDataUnsafe.user.first_name){
-  $('userHello').textContent = t('hello', { n: tg.initDataUnsafe.user.first_name });
-}
+applyLang();   // ставит и приветствие, и кнопку продолжения, и счётчик друзей
 newGrid();
 resize();
 setTimeout(resize, 300);
